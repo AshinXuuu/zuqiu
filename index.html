@@ -239,7 +239,13 @@
       .sc-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
       .sc-groups{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
       @media(max-width:760px){.sc-groups{grid-template-columns:repeat(2,1fr)}}
-      @media(max-width:460px){.sc-groups{grid-template-columns:1fr}}
+      /* 手机:固定每行两列(A/B 一行、C/D 一行…) */
+      @media(max-width:460px){
+        .sc-groups{grid-template-columns:repeat(2,1fr);gap:8px}
+        .sc-grp{padding:10px 10px}
+        .sc-grp h4{font-size:12.5px;margin-bottom:6px}
+        .sc-grp li{font-size:12.5px;padding:2px 0}
+      }
       .sc-grp{border:1px solid var(--line);border-radius:11px;padding:12px 13px}
       .sc-grp h4{margin:0 0 8px;font-size:13px;color:var(--accent);font-weight:600}
       .sc-grp ul{margin:0;padding:0;list-style:none}
