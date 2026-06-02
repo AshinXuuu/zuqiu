@@ -1,0 +1,13 @@
+# 不上传数据与隐私文件
+data/
+*.csv
+bets.csv
+__pycache__/
+*.pyc
+.DS_Store
+bt_log.txt
+回测结果_模式A.txt
+# 含服务器 IP / 登录账号等信息,不要传公开仓库
+DEPLOY_服务器部署.md
+deploy.sh
+*.sh
