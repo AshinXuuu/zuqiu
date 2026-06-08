@@ -215,6 +215,30 @@
     details.api summary{padding:14px 14px}
     footer{font-size:11.5px}
   }
+
+  /* 左列(输入 + 串关计算器) */
+  .col-left{display:flex;flex-direction:column;gap:24px;min-width:0}
+  @media(max-width:820px){.col-left{gap:16px}}
+  .navlink{font-size:12.5px;color:var(--accent);white-space:nowrap}
+  /* 「最可能的比分」的 ＋串 按钮 */
+  .addbtn{border:1px solid var(--accent);color:var(--accent);background:#fff;border-radius:7px;
+    font-family:inherit;font-size:11.5px;padding:2px 9px;cursor:pointer;transition:.12s;white-space:nowrap}
+  .addbtn:hover{background:var(--accent);color:#fff}
+  /* 串关计算器卡片 */
+  #calc h2{margin-bottom:6px}
+  .calchint{font-size:11.5px;color:var(--ink-faint);line-height:1.55;margin:0 0 6px}
+  .calc-leg{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .calc-leg:last-child{border-bottom:none}
+  .calc-leg .sc{font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;width:34px}
+  .calc-leg .mid{flex:1;min-width:0}
+  .calc-leg .mid .tm{font-size:12px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .calc-leg .mid .pp{font-size:11px;color:var(--ink-faint)}
+  .calc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 4px}
+  .cstat{border:1px solid var(--line);border-radius:9px;padding:9px 8px;text-align:center}
+  .cstat .k{display:block;font-size:10.5px;color:var(--ink-faint)}
+  .cstat .v{display:block;font-size:16px;font-weight:600;margin-top:2px}
+  .calc-actions{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .calc-empty{font-size:12px;color:var(--ink-faint);padding:8px 0}
 </style>
 </head>
 <body>
@@ -377,6 +401,7 @@
   <!-- =================== 赛程结束 =================== -->
 
   <div class="grid">
+   <div class="col-left">
     <!-- 输入 -->
     <section class="card" id="inputcard">
       <h2>输入赔率</h2>
@@ -403,14 +428,34 @@
       <p class="hint">最少需要胜平负 + 一组大小球。让球盘可不填 —— 净胜球的信息已包含在胜平负里。</p>
     </section>
 
+    <!-- 串关计算器(腿来自「最可能的比分」的 ＋串) -->
+    <section class="card" id="calc">
+      <h2>串关计算器</h2>
+      <p class="calchint">在右侧「最可能的比分」点 <b>＋串</b> 加入(每场限一腿,最多 5 场)。再选「单场」或「串关」加入「我的预测」。</p>
+      <div id="calcBody"></div>
+      <div id="calcSum" style="display:none">
+        <div class="calc-stats">
+          <div class="cstat"><span class="k">串数</span><span class="v" id="cN">–</span></div>
+          <div class="cstat"><span class="k">理论中奖率</span><span class="v" id="cHit">–</span></div>
+          <div class="cstat"><span class="k">组合公允赔率</span><span class="v" id="cOdds">–</span></div>
+        </div>
+        <div class="calc-actions">
+          <button class="go" style="margin-top:0" onclick="addCalc('parlay')">串关加入「我的预测」</button>
+          <button class="mini" onclick="addCalc('single')">拆成单场加入</button>
+          <button class="mini" onclick="clearCalc()">清空</button>
+        </div>
+        <p class="calchint" style="margin-top:10px">组合赔率为<b>公允</b>值(各腿 1/概率 相乘);真实庄家比分串关赔率会更短(水位高)。串得越多中奖率越低、方差越大。</p>
+      </div>
+    </section>
+   </div><!-- /col-left -->
+
     <!-- 输出 -->
     <section class="card" id="out">
-      <div class="tabs">
-        <button class="tab active" data-tab="score" onclick="switchTab('score')">比分概率</button>
-        <button class="tab" data-tab="val" onclick="switchTab('val')">我的预测 · 历史 / 校准</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0">比分概率</h2>
+        <a href="我的预测.html" class="navlink">我的预测 · 归档分析 ↗</a>
       </div>
-
-      <!-- 标签1:比分概率 -->
+      <!-- 比分概率 -->
       <div class="panel" id="panel-score">
         <h2 id="outTitle" style="margin-top:4px">市场公允概率</h2>
         <div class="probrow">
@@ -431,135 +476,8 @@
         <div class="callout" id="callout"></div>
       </div>
 
-      <!-- 标签2:我的预测 -->
-      <div class="panel" id="panel-val" hidden>
-        <h2 style="margin-top:4px">我的预测 · 历史与校准</h2>
-        <p class="lam" style="margin-bottom:16px">在「比分概率」里<b>点击某个比分</b>,它会自动存到这里(含模型给该比分的概率)。比赛打完后,在<b>实际比分</b>里填真实结果,工具自动判断<b>精确命中</b>和<b>胜平负命中</b>并统计校准。记录存在本机浏览器,刷新/关页不丢。</p>
-
-        <div class="ledger-wrap">
-          <table class="ledger" id="predTable">
-            <thead><tr>
-              <th>比赛</th><th>预测</th><th>模型概率</th><th>实际比分</th><th>精确</th><th>胜平负</th>
-            </tr></thead>
-            <tbody id="predBody"></tbody>
-          </table>
-        </div>
-        <div class="ledger-actions">
-          <button class="mini" onclick="syncResults()">🔄 同步真实赛果</button>
-          <button class="mini" onclick="clearPreds()">清空记录</button>
-          <button class="mini" onclick="exportPreds()">导出 CSV</button>
-        </div>
-        <div class="apimsg" id="syncMsg" style="margin-top:8px"></div>
-
-        <div id="predStats" style="display:none">
-          <div class="probrow" style="grid-template-columns:repeat(3,1fr);margin-top:22px">
-            <div class="stat"><div class="k">已记录</div><div class="v" id="pTotal">–</div></div>
-            <div class="stat"><div class="k">已结算</div><div class="v" id="pSettled">–</div></div>
-            <div class="stat"><div class="k">平均模型概率</div><div class="v" id="pAvgP">–</div></div>
-          </div>
-          <div class="probrow" style="grid-template-columns:repeat(3,1fr)">
-            <div class="stat"><div class="k">精确比分命中</div><div class="v" id="pExact">–</div></div>
-            <div class="stat"><div class="k">胜平负命中</div><div class="v" id="pSide">–</div></div>
-            <div class="stat"><div class="k">Brier(精确)</div><div class="v" id="pBrier">–</div></div>
-          </div>
-
-          <div class="blocktitle" style="margin-top:18px">校准:你预测比分的模型概率 vs 实际精确命中</div>
-          <div class="matrix-wrap"><table class="mx caltab" id="pCalTab"></table></div>
-          <p class="axis">按“模型给该比分的概率”分组,看实际精确命中率是否接近。精确比分方差极大,需较多样本才可信。</p>
-
-          <div class="callout" id="pVerdict"></div>
-        </div>
-      </div>
     </section>
   </div>
-
-  <!-- ===================== 价值扫描 ===================== -->
-  <section class="card" id="scanner">
-    <style>
-      #scanner h2{margin-bottom:6px}
-      .sv-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0 2px}
-      .sv-bar label{font-size:12px;color:var(--ink-soft);margin:0}
-      .sv-bar input{width:62px;padding:7px 9px;border:1px solid var(--line-strong);border-radius:8px;font-family:inherit}
-      .sv-bar select{padding:7px 9px;border:1px solid var(--line-strong);border-radius:8px;font-family:inherit;font-size:13px}
-      .sv-msg{font-size:12.5px;margin-top:10px;line-height:1.6;color:var(--ink-soft)}
-      .sv-msg.err{color:var(--warn)} .sv-msg.ok{color:var(--accent)}
-      .sv-list{margin-top:14px;display:flex;flex-direction:column;gap:7px}
-      .sv-row{display:grid;grid-template-columns:60px 50px 1fr auto;gap:10px;align-items:center;
-        padding:10px 12px;border:1px solid var(--line-strong);border-radius:9px;background:#fff;font-size:13px}
-      .sv-edge{font-weight:700;color:var(--home);font-variant-numeric:tabular-nums}
-      .sv-mk{font-size:11px;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:2px 6px;text-align:center}
-      .sv-mid .sel{font-weight:600} .sv-mid .mt{color:var(--ink-faint);font-size:11.5px}
-      .sv-right{text-align:right;color:var(--ink-soft);font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}
-      .sv-right b{color:var(--ink)}
-      .sv-add{display:inline-block;margin-top:5px;border:1px solid var(--accent);color:var(--accent);
-        background:#fff;border-radius:7px;font-family:inherit;font-size:11.5px;padding:3px 9px;
-        cursor:pointer;transition:.12s}
-      .sv-add:hover{background:var(--accent);color:#fff}
-      .sv-row.suspect{background:#fdf8f0}
-      /* 按比赛分组的卡片 */
-      .sv-game{border:1px solid var(--line-strong);border-left:5px solid var(--accent);
-        border-radius:11px;overflow:hidden}
-      .sv-game + .sv-game{margin-top:11px}
-      .sv-ghead{display:flex;justify-content:space-between;gap:10px;align-items:baseline;
-        padding:9px 13px;background:var(--accent-soft)}
-      .sv-ghead .tm{font-weight:600;color:var(--ink);font-size:13.5px}
-      .sv-ghead .meta{font-size:11.5px;color:var(--ink-soft);white-space:nowrap;text-align:right}
-      .sv-game .sv-row{border:none;border-top:1px solid var(--line);border-radius:0}
-      @media(max-width:560px){
-        .sv-row{grid-template-columns:52px 1fr auto}.sv-mk{display:none}
-        .sv-ghead{flex-direction:column;gap:2px}.sv-ghead .meta{text-align:left}
-      }
-    </style>
-    <h2>价值扫描 · 软盘错价</h2>
-    <p class="lam">以 <b>Pinnacle</b> 为公允基准,扫所有比赛的胜平负/大小球/让球,列出"<b>软盘比公允长</b>"的正 EV 机会。先在页面底部填好 API key。多数比赛没机会很正常 —— 没机会就别下。</p>
-    <div class="sv-bar">
-      <button class="go" style="width:auto;padding:9px 18px;margin:0" onclick="scanValue()">扫描今日机会</button>
-      <label>阈值%</label><input type="number" id="svEdge" value="4" step="0.5">
-      <label>区域</label>
-      <select id="svRegions">
-        <option value="eu,uk">eu,uk</option><option value="eu">eu</option>
-        <option value="uk">uk</option><option value="us">us</option>
-        <option value="eu,uk,us">eu,uk,us(更费额度)</option>
-      </select>
-    </div>
-    <div class="sv-msg" id="svMsg"></div>
-    <div class="sv-list" id="svList"></div>
-  </section>
-  <!-- =================== 价值扫描结束 =================== -->
-
-  <!-- ===================== 串关计算器 ===================== -->
-  <section class="card" id="parlay">
-    <style>
-      #parlay h2{margin-bottom:6px}
-      .pl-list{margin:14px 0 4px;display:flex;flex-direction:column;gap:7px}
-      .pl-leg{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;
-        padding:9px 12px;border:1px solid var(--line-strong);border-radius:9px;background:#fff;font-size:13px}
-      .pl-edge{font-weight:700;color:var(--home);font-variant-numeric:tabular-nums}
-      .pl-mid .sel{font-weight:600}
-      .pl-mid .mt{color:var(--ink-faint);font-size:11.5px}
-    </style>
-    <h2>串关计算器 · 最多 5 串</h2>
-    <p class="lam">从上方价值扫描点「＋串」加入正 EV 腿(不同比赛)。组合赔率 = 各腿相乘;组合 edge = 各腿 (1+edge) 相乘 − 1。串关<b>放大 edge 也放大方差</b> —— 要<b>全中</b>才赢。</p>
-    <div class="pl-list" id="plBody"></div>
-    <div id="plSum" style="display:none">
-      <div class="sv-bar" style="margin-top:6px">
-        <label>本金</label><input type="number" id="plStake" value="50" oninput="renderParlay()">
-        <button class="mini" onclick="clearParlay()">清空</button>
-      </div>
-      <div class="probrow" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
-        <div class="stat"><div class="k">串数</div><div class="v" id="plN">–</div></div>
-        <div class="stat"><div class="k">组合赔率</div><div class="v" id="plOdds">–</div></div>
-        <div class="stat"><div class="k">组合 edge</div><div class="v" id="plEdge">–</div></div>
-      </div>
-      <div class="probrow" style="grid-template-columns:repeat(3,1fr)">
-        <div class="stat"><div class="k">理论中奖率</div><div class="v" id="plHit">–</div></div>
-        <div class="stat"><div class="k">潜在派彩</div><div class="v" id="plPay">–</div></div>
-        <div class="stat"><div class="k">净赚</div><div class="v" id="plProfit">–</div></div>
-      </div>
-      <div class="callout">提醒:① 同场两腿不能串(相关性,标准串关也禁);② 串得越多中奖率越低、方差越大;③ 实际庄家串关赔率可能略低于各腿乘积,且会限红;④ 只有<b>每条腿都真·正 EV</b>,串起来才是正 EV —— 别用它去串没把握的腿。</div>
-    </div>
-  </section>
-  <!-- =================== 串关结束 =================== -->
 
   <!-- API:页面底部,折叠 -->
   <details class="api">
@@ -699,13 +617,14 @@ function run(){
   const top=flat.slice(0,10), tmax=top[0][2];
   let th='';
   top.forEach(([i,j,p])=>{
-    th+=`<div class="toprow" title="点击记录这个比分预测" onclick="recordPick(${i},${j},${p.toFixed(4)})">
+    th+=`<div class="toprow">
       <span class="sc">${i}-${j}</span>
       <span class="bar"><i style="width:${(p/tmax*100).toFixed(0)}%"></i></span>
-      <span class="pc">${(p*100).toFixed(1)}%</span><span class="add">＋</span></div>`;
+      <span class="pc">${(p*100).toFixed(1)}%</span>
+      <button class="addbtn" onclick="addScoreLeg(${i},${j},${p.toFixed(4)})" title="加入串关计算器">＋串</button></div>`;
   });
   document.getElementById('top').innerHTML=th
-    +'<p class="pickhint">点击任一比分 → 记录为你的预测,自动存入「我的预测」标签页。</p>';
+    +'<p class="pickhint">点「＋串」把该比分加入左侧「串关计算器」,再决定单场或串关加入「我的预测」。</p>';
 
   const t3=top.slice(0,3).reduce((a,b)=>a+b[2],0);
   const t5=top.slice(0,5).reduce((a,b)=>a+b[2],0);
@@ -847,320 +766,62 @@ function loadInto(ev,od){
   document.getElementById('out').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-/* ---------- 验证层:CLV + 概率校准 ---------- */
-function switchTab(t){
-  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
-  document.getElementById('panel-score').hidden = t!=='score';
-  document.getElementById('panel-val').hidden = t!=='val';
-}
-/* ---------- 价值扫描:以 Pinnacle 为公允,扫软盘错价(正 EV) ---------- */
-function _devigP(arr){const inv=arr.map(o=>1/o),s=inv.reduce((a,b)=>a+b,0);return inv.map(x=>x/s);}
-function sv_fair(ev){
-  const bk=(ev.bookmakers||[]).find(b=>b.key==='pinnacle'); if(!bk)return null;
-  const fair={};
-  (bk.markets||[]).forEach(m=>{
-    const outs=m.outcomes||[];
-    if(m.key==='h2h'){
-      const pr=outs.map(o=>o.price);
-      if(outs.length>=2&&pr.every(p=>p>1)){
-        const fp=_devigP(pr); outs.forEach((o,i)=>{fair['h2h|null|'+o.name]=fp[i];});
-      }
-    }else if(m.key==='totals'||m.key==='spreads'){
-      const g={};
-      outs.forEach(o=>{const pt=Math.round((+o.point||0)*100)/100;
-        const k=(m.key==='totals')?pt:Math.abs(pt); (g[k]=g[k]||[]).push(o);});
-      Object.values(g).forEach(pair=>{
-        if(pair.length===2&&pair.every(o=>o.price>1)){
-          const fp=_devigP([pair[0].price,pair[1].price]);
-          pair.forEach((o,i)=>{const pt=Math.round((+o.point||0)*100)/100;
-            fair[m.key+'|'+pt+'|'+o.name]=fp[i];});
-        }
-      });
-    }
-  });
-  return fair;
-}
-function bjTime(iso){
-  try{ return '北京 '+new Date(iso).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',
-    month:'numeric',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}); }
-  catch(e){ return ''; }
-}
-const SV_MK={h2h:'胜平负',totals:'大小球',spreads:'让球'};
+/* ---------- 串关计算器(腿来自「最可能的比分」的 ＋串) ---------- */
+const CALCKEY='wc_calc_v1';
+let CALC=[]; try{ CALC=JSON.parse(localStorage.getItem(CALCKEY))||[]; }catch(e){ CALC=[]; }
+function saveCalc(){ try{ localStorage.setItem(CALCKEY,JSON.stringify(CALC)); }catch(e){} }
+function _loadPreds(){ try{ return JSON.parse(localStorage.getItem('wc_predictions_v1'))||[]; }catch(e){ return []; } }
+function _savePreds(a){ try{ localStorage.setItem('wc_predictions_v1',JSON.stringify(a)); }catch(e){} }
 
-/* ---------- 串关计算器(最多5串,腿来自价值扫描) ---------- */
-let SV_OPPS={};       // 本次扫描的所有机会 id->opp
-let PARLAY=[];        // 已选的腿
-function addLeg(id){
-  const o=SV_OPPS[id]; if(!o)return;
-  const i=PARLAY.findIndex(l=>l.evKey===o.evKey);
-  if(i>=0){ PARLAY[i]=o; }                       // 同一场:替换为新选的腿
-  else{ if(PARLAY.length>=5){ alert('最多串 5 场'); return; } PARLAY.push(o); }
-  renderParlay();
-  const el=document.getElementById('parlay'); if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});
+function addScoreLeg(i,j,p){
+  if(!window.LAST){ alert('请先在上方填赔率并“计算比分概率”'); return; }
+  const L=window.LAST, evKey=L.home+'|'+L.away;
+  const leg={ id:Date.now()+'_'+Math.floor(Math.random()*1e4), evKey,
+    home:L.home, away:L.away, si:i, sj:j, p:+p };
+  const k=CALC.findIndex(x=>x.evKey===evKey);
+  if(k>=0){ CALC[k]=leg; }                          // 同场只能一腿:替换
+  else{ if(CALC.length>=5){ alert('最多串 5 场'); return; } CALC.push(leg); }
+  saveCalc(); renderCalc();
+  const el=document.getElementById('calc'); if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-function removeLeg(id){ PARLAY=PARLAY.filter(l=>l.id!==id); renderParlay(); }
-function clearParlay(){ PARLAY=[]; renderParlay(); }
-function renderParlay(){
-  const body=document.getElementById('plBody'), sum=document.getElementById('plSum');
+function removeCalcLeg(id){ CALC=CALC.filter(l=>l.id!==id); saveCalc(); renderCalc(); }
+function clearCalc(){ CALC=[]; saveCalc(); renderCalc(); }
+function renderCalc(){
+  const body=document.getElementById('calcBody'), sum=document.getElementById('calcSum');
   if(!body)return;
-  if(!PARLAY.length){
-    body.innerHTML='<div class="sv-msg">还没有腿。在上方价值扫描结果里点某行的「＋串」加入(同一场只能一腿,最多 5 场)。</div>';
+  if(!CALC.length){
+    body.innerHTML='<div class="calc-empty">还没有比分。在右侧「最可能的比分」点 ＋串 加入。</div>';
     sum.style.display='none'; return;
   }
-  body.innerHTML=PARLAY.map(l=>`<div class="pl-leg">
-     <span class="pl-edge">+${(l.edge*100).toFixed(1)}%</span>
-     <span class="pl-mid"><div class="sel">${SV_MK[l.mk]||l.mk} · ${l.sel}</div>
-       <div class="mt">${l.match} · ${l.book} @${l.price.toFixed(2)}</div></span>
-     <button class="delrow" onclick="removeLeg('${l.id}')">×</button></div>`).join('');
-  const odds=PARLAY.reduce((a,l)=>a*l.price,1);
-  const fairp=PARLAY.reduce((a,l)=>a*(1/l.fair),1);
-  const edge=fairp*odds-1;
-  const stake=+document.getElementById('plStake').value||0;
+  body.innerHTML=CALC.map(l=>`<div class="calc-leg">
+    <span class="sc">${l.si}-${l.sj}</span>
+    <span class="mid"><div class="tm">${l.home} vs ${l.away}</div>
+      <div class="pp">模型概率 ${(l.p*100).toFixed(1)}% · 公允 ${(1/l.p).toFixed(1)}</div></span>
+    <button class="delrow" onclick="removeCalcLeg('${l.id}')">×</button></div>`).join('');
+  const prob=CALC.reduce((a,l)=>a*l.p,1), odds=1/prob;
   sum.style.display='block';
-  const S=(id,v)=>document.getElementById(id).innerHTML=v;
-  S('plN',PARLAY.length+' 串 1');
-  S('plOdds',odds.toFixed(2));
-  S('plHit',(fairp*100).toFixed(1)+'<small>%</small>');
-  const ec=document.getElementById('plEdge');
-  ec.innerHTML=(edge>=0?'+':'')+(edge*100).toFixed(1)+'<small>%</small>';
-  ec.style.color=edge>0?'var(--home)':'var(--warn)';
-  S('plPay',(stake*odds).toFixed(0));
-  S('plProfit','+'+(stake*odds-stake).toFixed(0));
+  document.getElementById('cN').textContent=CALC.length+(CALC.length>1?' 串 1':' 场');
+  document.getElementById('cHit').innerHTML=(prob*100).toFixed(prob<0.1?2:1)+'<small>%</small>';
+  document.getElementById('cOdds').textContent=odds.toFixed(2);
 }
-function sv_label(mk,o,pt){
-  if(mk==='h2h')return zh(o.name);
-  if(mk==='totals')return (o.name==='Over'?'大':'小')+' '+pt;
-  if(mk==='spreads'){const s=pt>0?('+'+pt):(''+pt);return zh(o.name)+' '+s;}
-  return o.name;
-}
-async function scanValue(){
-  const msg=document.getElementById('svMsg'),list=document.getElementById('svList');
-  list.innerHTML='';
-  let key=''; try{key=localStorage.getItem(KEYSTORE)||'';}catch(e){}
-  const fld=document.getElementById('apiKey'); if(!key&&fld)key=fld.value.trim();
-  const sport=(document.getElementById('sportKey')&&document.getElementById('sportKey').value.trim())||'soccer_fifa_world_cup';
-  const thr=(+document.getElementById('svEdge').value||4)/100;
-  const regions=document.getElementById('svRegions').value;
-  if(!key){msg.className='sv-msg err';msg.textContent='请先在页面底部「接入 The Odds API」填入 key(会自动记住)。';return;}
-  msg.className='sv-msg';msg.textContent='扫描中…(拉取并对比各家赔率)';
-  const url=`https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${encodeURIComponent(key)}&regions=${regions}&markets=h2h,totals,spreads&oddsFormat=decimal`;
-  try{
-    const r=await fetch(url);
-    if(!r.ok){let d='';try{d=(await r.json()).message||'';}catch(e){}
-      msg.className='sv-msg err';msg.textContent=`请求失败 (${r.status})。${d||'检查 key、赛事 key 或免费额度。'}`;return;}
-    const data=await r.json();
-    const rem=r.headers.get('x-requests-remaining');
-    const games={};                      // evKey -> {league,time,match,items:[]}
-    SV_OPPS={}; let oppId=0;              // 重置机会登记表(供串关引用)
-    data.forEach(ev=>{
-      const fair=sv_fair(ev); if(!fair)return;
-      const key=ev.id||(ev.home_team+ev.away_team+ev.commence_time);
-      const league=ev.sport_title||'', time=bjTime(ev.commence_time),
-            match=zh(ev.home_team)+' vs '+zh(ev.away_team);
-      (ev.bookmakers||[]).forEach(bk=>{
-        if(bk.key==='pinnacle')return;
-        (bk.markets||[]).forEach(m=>{
-          (m.outcomes||[]).forEach(o=>{
-            const pt=(m.key==='h2h')?null:Math.round((+o.point||0)*100)/100;
-            const fp=fair[m.key+'|'+pt+'|'+o.name]; if(fp==null)return;
-            if(!(o.price>1))return;
-            const edge=fp*o.price-1;
-            if(edge>thr){
-              const id='o'+(oppId++);
-              const opp={id,evKey:key,league,time,match,edge,mk:m.key,
-                sel:sv_label(m.key,o,pt),book:bk.title||bk.key,
-                price:o.price,fair:1/fp,suspect:edge>0.25};
-              SV_OPPS[id]=opp;
-              const g=games[key]||(games[key]={league,time,match,items:[]});
-              g.items.push(opp);
-            }
-          });
-        });
-      });
-    });
-    const groups=Object.values(games);
-    groups.forEach(g=>{g.best=Math.max.apply(null,g.items.map(x=>x.edge));
-      g.items.sort((a,b)=>b.edge-a.edge);});
-    groups.sort((a,b)=>b.best-a.best);
-    const nOpp=groups.reduce((s,g)=>s+g.items.length,0);
-    msg.className='sv-msg ok';
-    msg.textContent=`扫了 ${data.length} 场,${groups.length} 场有机会、共 ${nOpp} 个正 EV(阈值 ${(thr*100).toFixed(0)}%)。`+(rem?`　剩余额度 ${rem}`:'');
-    if(!groups.length){
-      list.innerHTML='<div class="sv-msg">没有超过阈值的机会 —— 没机会就别下,这是对的。可把阈值调低再看看。</div>';return;}
-    const COLORS=['#2f6b4f','#7a5a8c','#9a6b3f','#3f6b9a','#b0894a','#5a8c7a','#8c5a6b'];
-    list.innerHTML=groups.map((g,gi)=>{
-      const c=COLORS[gi%COLORS.length];
-      const items=g.items.map(r=>`<div class="sv-row${r.suspect?' suspect':''}">
-        <span class="sv-edge">+${(r.edge*100).toFixed(1)}%</span>
-        <span class="sv-mk">${SV_MK[r.mk]||r.mk}</span>
-        <span class="sv-mid"><div class="sel">${r.sel}</div><div class="mt">${r.book}</div></span>
-        <span class="sv-right"><b>${r.price.toFixed(2)}</b> / 公允 ${r.fair.toFixed(2)}${r.suspect?' ⚠':''}
-          <button class="sv-add" onclick="addLeg('${r.id}')" title="加入串关">＋串</button></span>
-      </div>`).join('');
-      return `<div class="sv-game" style="border-left-color:${c}">
-        <div class="sv-ghead"><span class="tm">${g.match}</span>
-          <span class="meta">${g.league?g.league+' · ':''}${g.time}</span></div>${items}</div>`;
-    }).join('')
-    +'<p class="sv-msg">下注前看一眼该场赛前队伍新闻,排除"软盘旧价没跟上伤停"的假机会;正EV≠必赢,需多注 + 记 CLV 验证;⚠为疑似旧价/漏盘。</p>';
-  }catch(e){
-    msg.className='sv-msg err';
-    msg.innerHTML='浏览器直连失败(网络或 CORS)。可改用本机脚本 scan_value.py。';
+function addCalc(mode){
+  if(!CALC.length){ alert('先用 ＋串 加入比分'); return; }
+  const preds=_loadPreds(), now=new Date().toLocaleDateString('zh-CN');
+  const mk=l=>({home:l.home,away:l.away,si:l.si,sj:l.sj,p:l.p,
+    side:(l.si>l.sj?'H':(l.si<l.sj?'A':'D')),actual:''});
+  if(mode==='single'){
+    CALC.forEach(l=>preds.push({id:Date.now()+'_'+Math.floor(Math.random()*1e4),
+      ts:now, type:'single', ...mk(l)}));
+    _savePreds(preds); alert('已按单场加入「我的预测」'+CALC.length+' 条。');
+  }else{
+    preds.push({id:Date.now()+'_'+Math.floor(Math.random()*1e4),
+      ts:now, type:'parlay', legs:CALC.map(mk)});
+    _savePreds(preds); alert('已按串关(共 '+CALC.length+' 场,全中才算赢)加入「我的预测」。');
   }
+  CALC=[]; saveCalc(); renderCalc();
 }
 
-/* ---------- 我的预测:点击比分 → 记录 → 实际比分校准(localStorage 持久化) ---------- */
-const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN;
-const PKEY='wc_predictions_v1';
-let PREDS=[];
-try{ PREDS=JSON.parse(localStorage.getItem(PKEY))||[]; }catch(e){ PREDS=[]; }
-function savePreds(){ try{ localStorage.setItem(PKEY,JSON.stringify(PREDS)); }catch(e){} }
-function parseActual(s){ const m=(s||'').match(/^\s*(\d+)\s*[-:]\s*(\d+)\s*$/); return m?[+m[1],+m[2]]:null; }
-
-function recordPick(i,j,p){
-  if(!window.LAST){ alert('请先在左侧填赔率并“计算比分概率”'); return; }
-  const L=window.LAST;
-  const side = i>j?'H':(i<j?'A':'D');
-  PREDS.push({ id:Date.now()+'_'+Math.floor(Math.random()*1e4),
-    ts:new Date().toLocaleDateString('zh-CN'),
-    home:L.home, away:L.away, si:i, sj:j, p:+p, side:side, actual:'' });
-  savePreds(); renderPreds(); switchTab('val');
-}
-function setActual(id,v){ const r=PREDS.find(x=>x.id===id); if(r){ r.actual=v; savePreds(); renderPreds(); } }
-function delPred(id){ PREDS=PREDS.filter(x=>x.id!==id); savePreds(); renderPreds(); }
-function clearPreds(){ if(confirm('清空全部预测记录?')){ PREDS=[]; savePreds(); renderPreds(); } }
-function exportPreds(){
-  const head=['比赛','预测比分','模型概率','预测结果','实际比分','精确命中','胜平负命中','记录日期'];
-  const rows=PREDS.map(r=>{
-    const a=parseActual(r.actual); let ex='',sd='';
-    if(a){ ex=(a[0]===r.si&&a[1]===r.sj)?1:0;
-      const as=a[0]>a[1]?'H':(a[0]<a[1]?'A':'D'); sd=(as===r.side)?1:0; }
-    return [r.home+' vs '+r.away, r.si+'-'+r.sj, (r.p*100).toFixed(1)+'%',
-            r.side, r.actual||'', ex, sd, r.ts];
-  });
-  const csv=[head,...rows].map(a=>a.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');
-  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
-  const u=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=u; a.download='我的世界杯预测.csv'; a.click(); URL.revokeObjectURL(u);
-}
-
-function renderPreds(){
-  const tb=document.getElementById('predBody');
-  if(!PREDS.length){
-    tb.innerHTML='<tr><td colspan="6" style="color:var(--ink-faint);padding:14px 0">还没有预测记录。去「比分概率」点某个比分的＋,即可记录。</td></tr>';
-    computeStats(); return;
-  }
-  let h='';
-  PREDS.slice().reverse().forEach(r=>{
-    const a=parseActual(r.actual); let ex='<span style="color:var(--ink-faint)">待定</span>',sd=ex;
-    if(a){ const eh=(a[0]===r.si&&a[1]===r.sj);
-      const as=a[0]>a[1]?'H':(a[0]<a[1]?'A':'D');
-      ex= eh?'<b style="color:var(--home)">✓</b>':'<span style="color:var(--warn)">✗</span>';
-      sd=(as===r.side)?'<b style="color:var(--home)">✓</b>':'<span style="color:var(--warn)">✗</span>'; }
-    h+=`<tr>
-      <td>${r.home} vs ${r.away}<br><small style="color:var(--ink-faint)">${r.ts}</small></td>
-      <td style="text-align:center;font-weight:600">${r.si}-${r.sj}</td>
-      <td style="text-align:center">${(r.p*100).toFixed(1)}%</td>
-      <td><input class="actin" value="${r.actual||''}" placeholder="如 2-1" onchange="setActual('${r.id}',this.value)"></td>
-      <td style="text-align:center">${ex}</td>
-      <td style="text-align:center">${sd} <button class="delrow" onclick="delPred('${r.id}')">×</button></td>
-    </tr>`;
-  });
-  tb.innerHTML=h; computeStats();
-}
-
-function computeStats(){
-  const box=document.getElementById('predStats');
-  const settled=PREDS.filter(r=>parseActual(r.actual));
-  document.getElementById('pTotal').textContent=PREDS.length;
-  if(!settled.length){ box.style.display = PREDS.length? 'block':'none';
-    document.getElementById('pSettled').textContent='0';
-    ['pAvgP','pExact','pSide','pBrier'].forEach(id=>document.getElementById(id).textContent='–');
-    document.getElementById('pCalTab').innerHTML='';
-    document.getElementById('pVerdict').innerHTML = PREDS.length?
-      '填入实际比分后,这里会自动统计命中率与校准。':''; return; }
-  box.style.display='block';
-  const ex=settled.map(r=>{const a=parseActual(r.actual);return (a[0]===r.si&&a[1]===r.sj)?1:0;});
-  const sd=settled.map(r=>{const a=parseActual(r.actual);const as=a[0]>a[1]?'H':(a[0]<a[1]?'A':'D');return as===r.side?1:0;});
-  const avgP=mean(settled.map(r=>r.p));
-  const exRate=mean(ex), sdRate=mean(sd);
-  const brier=mean(settled.map((r,k)=>(r.p-ex[k])**2));
-  const S=(id,v)=>document.getElementById(id).innerHTML=v;
-  S('pSettled',settled.length);
-  S('pAvgP',(avgP*100).toFixed(1)+'<small>%</small>');
-  S('pExact',(exRate*100).toFixed(0)+'<small>%</small>');
-  S('pSide',(sdRate*100).toFixed(0)+'<small>%</small>');
-  S('pBrier',brier.toFixed(3));
-  // 校准表(按模型给该比分的概率分桶)
-  const bins=[[0,.05],[.05,.10],[.10,.15],[.15,.25],[.25,1.01]];
-  let html='<thead><tr><th>模型概率区间</th><th>场数</th><th>预测均值</th><th>实际精确命中</th><th>偏差</th></tr></thead><tbody>';
-  bins.forEach(([lo,hi])=>{
-    const idx=[]; settled.forEach((r,k)=>{ if(r.p>=lo&&r.p<hi) idx.push(k); });
-    if(!idx.length) return;
-    const pm=mean(idx.map(k=>settled[k].p))*100, ac=mean(idx.map(k=>ex[k]))*100, diff=ac-pm;
-    html+=`<tr><td>${(lo*100)|0}–${hi>1?100:(hi*100)|0}%</td><td>${idx.length}</td>
-      <td>${pm.toFixed(0)}%</td><td>${ac.toFixed(0)}%</td>
-      <td class="${Math.abs(diff)>8?'miss':''}">${diff>=0?'+':''}${diff.toFixed(0)}%</td></tr>`;
-  });
-  html+='</tbody>'; document.getElementById('pCalTab').innerHTML=html;
-  // 诚实结论
-  let v='';
-  if(settled.length<30) v+='⚠ 已结算样本偏少,精确比分方差极大,<b>几十场以内</b>的命中率/校准都别太当真。';
-  v+=` 你的<b>精确比分命中 ${(exRate*100).toFixed(0)}%</b>(模型平均预期 ${(avgP*100).toFixed(0)}%) —— `;
-  if(Math.abs(exRate-avgP)<=0.04) v+='两者接近,说明你的比分概率<b>校准良好</b>。';
-  else if(exRate>avgP) v+='实际高于预期,可能是运气或你确实在加价值,继续累积。';
-  else v+='实际低于预期,样本够大的话要警惕高估。';
-  v+=` <b>胜平负命中 ${(sdRate*100).toFixed(0)}%</b> 比精确比分更稳,是更可靠的参考。`;
-  v+=' 提醒:精确比分命中率上限约 10–14%,这是足球内在方差,不是模型不好。';
-  document.getElementById('pVerdict').innerHTML=v;
-}
-
-/* ---------- 同步真实赛果:The Odds API /scores → 自动回填实际比分 ---------- */
-function nameEq(a,b){ if(!a||!b)return false; a=(''+a).trim(); b=(''+b).trim();
-  return a===b || zh(a)===b || a===zh(b) || zh(a)===zh(b); }
-function scoreMap(ev){ const m={}; (ev.scores||[]).forEach(s=>{m[s.name]=Number(s.score);}); return m; }
-function matchEvent(p,done){
-  for(const ev of done){
-    const sm=scoreMap(ev), eh=ev.home_team, ea=ev.away_team;
-    if(!(eh in sm)||!(ea in sm))continue;
-    if(nameEq(eh,p.home)&&nameEq(ea,p.away)) return sm[eh]+'-'+sm[ea];   // 同向
-    if(nameEq(ea,p.home)&&nameEq(eh,p.away)) return sm[ea]+'-'+sm[eh];   // 反向→按你的主客摆放
-  }
-  return null;
-}
-async function syncResults(){
-  const st=document.getElementById('syncMsg');
-  let key=''; try{ key=localStorage.getItem(KEYSTORE)||''; }catch(e){}
-  const fld=document.getElementById('apiKey'); if(!key&&fld) key=fld.value.trim();
-  const sport=(document.getElementById('sportKey')&&document.getElementById('sportKey').value.trim())||'soccer_fifa_world_cup';
-  if(!key){ st.className='apimsg err'; st.textContent='请先在页面底部「接入 The Odds API」里填入 key(会自动记住)。'; return; }
-  const pending=PREDS.filter(p=>!parseActual(p.actual));
-  if(!PREDS.length){ st.className='apimsg'; st.textContent='还没有预测记录,先去记录几条。'; return; }
-  if(!pending.length){ st.className='apimsg'; st.textContent='所有预测都已填实际比分,无需同步。'; return; }
-  st.className='apimsg'; st.textContent='同步中…(拉取最近 3 天已结束的比赛)';
-  const url=`https://api.the-odds-api.com/v4/sports/${sport}/scores/?daysFrom=3&apiKey=${encodeURIComponent(key)}`;
-  try{
-    const r=await fetch(url);
-    if(!r.ok){ let d=''; try{d=(await r.json()).message||'';}catch(e){}
-      st.className='apimsg err'; st.textContent=`请求失败 (${r.status})。${d||'检查 key、赛事 key 或免费额度。'}`; return; }
-    const data=await r.json();
-    const done=data.filter(e=>e.completed && Array.isArray(e.scores) && e.scores.length>=2);
-    let filled=0;
-    PREDS.forEach(p=>{ if(parseActual(p.actual))return; const m=matchEvent(p,done); if(m){ p.actual=m; filled++; } });
-    if(filled){ savePreds(); renderPreds(); }
-    const rem=r.headers.get('x-requests-remaining');
-    const left=PREDS.filter(p=>!parseActual(p.actual)).length;
-    st.className='apimsg ok';
-    st.textContent=`接口返回已结束 ${done.length} 场,自动回填 ${filled} 条。`
-      +(left?`　还有 ${left} 条没匹配上(可能超过3天、队名对不上或尚未开赛,可手填)。`:'　全部已结算 ✓')
-      +(rem?`　剩余额度 ${rem}`:'');
-  }catch(e){
-    st.className='apimsg err';
-    st.textContent='浏览器直连失败(网络或 CORS)。可手动填实际比分,或用本机脚本拉取。';
-  }
-}
-
-renderPreds();   // 载入本机历史
-renderParlay();  // 串关初始空态
+renderCalc();    // 串关计算器初始态(含本机暂存的腿)
 run();           // 首屏用默认赔率渲染一次
 </script>
 </body>
