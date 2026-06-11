@@ -249,7 +249,7 @@
   </header>
 
   <!-- ===================== 世界杯赛程 ===================== -->
-  <section class="card" id="schedule">
+  <div class="sched2" id="schedule">
     <style>
       #schedule h2{margin-bottom:14px}
       .sc-note{font-size:12.5px;color:var(--ink-soft);background:var(--accent-soft);
@@ -308,21 +308,34 @@
       .sc-match .vs{flex:1;min-width:0}
       .sc-match .gp{font-size:10.5px;color:var(--ink-faint);background:#f3f3f1;
         border-radius:5px;padding:1px 6px;white-space:nowrap}
+      /* 两卡布局 + 内部滚动 + 已结束折叠 */
+      .sched2{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;align-items:start}
+      @media(max-width:820px){.sched2{grid-template-columns:1fr;gap:16px}}
+      .schedcard{display:flex;flex-direction:column}
+      .sched-scroll{height:330px;overflow-y:auto;padding-right:6px}
+      .sched-scroll .sc-groups{grid-template-columns:repeat(2,1fr)}
+      .sc-dhead{cursor:pointer}
+      .sc-dhead .dchev{transition:transform .15s}
+      .sc-day.fold .sc-dbody{display:none}
+      .sc-day.fold .dchev{transform:rotate(-90deg)}
+      .sc-day.fold .sc-dhead{color:var(--ink-faint);background:#f6f6f4}
+      .sc-done{font-size:10px;color:var(--ink-faint);margin-left:6px}
+      .sc-ko-mini{display:flex;justify-content:space-between;gap:8px;padding:7px 0;
+        border-bottom:1px solid var(--line);font-size:13px}
+      .sc-ko-mini:last-child{border-bottom:none}
+      .sc-ko-mini .kn{font-weight:600}
+      .sc-ko-mini .kd{color:var(--ink-soft);font-size:12px;text-align:right}
     </style>
 
-    <h2 id="scToggle" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none">
-      <span>世界杯 2026 · 赛程(北京时间)</span>
-      <span id="scChevron" style="font-size:12px;color:var(--accent);font-weight:600">收起 ▾</span>
-    </h2>
-    <div id="scWrap">
-      <div class="sc-note">
-        美加墨合办,48 队 104 场。下方时间<b>均为北京时间</b>(美东 +12 小时)。
-        小组赛第 1、2 轮已列出<b>每天几点几场</b>;淘汰赛对阵需小组赛后才揭晓,先列轮次、日期与晋级规则。
-      </div>
-      <div class="sc-tabs" id="scTabs"></div>
-      <div id="scBody"></div>
-    </div>
-  </section>
+    <section class="card schedcard">
+      <h2>分组情况</h2>
+      <div class="sched-scroll" id="groupsScroll"></div>
+    </section>
+    <section class="card schedcard">
+      <h2>小组赛程 · 北京时间</h2>
+      <div class="sched-scroll" id="fixScroll"></div>
+    </section>
+  </div>
   <script>
   "use strict";
   (function(){
@@ -423,22 +436,46 @@
         '<p class="sc-ko-sub">'+k.sub+'</p>'+
         '<p class="sc-flow">'+k.flow+'</p>';
     }
-    function render(stage){
-      document.querySelectorAll('#scTabs .sc-tab').forEach(b=>
-        b.classList.toggle('on', b.dataset.s===stage));
-      document.getElementById('scBody').innerHTML =
-        (stage==="小组赛") ? groupsHTML() : koHTML(stage);
+    // 今天(北京)用于自动折叠已结束的日子
+    function todayNum(){
+      try{ const t=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',
+        year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+        const a=t.split('-').map(Number); return a[0]*10000+a[1]*100+a[2]; }
+      catch(e){ return 0; }
     }
-    const tabs = document.getElementById('scTabs');
-    STAGES.forEach((s,i)=>{
-      const b=document.createElement('button');
-      b.className='sc-tab'+(i===0?' on':''); b.textContent=s; b.dataset.s=s;
-      b.onclick=()=>render(s); tabs.appendChild(b);
-    });
-    render("小组赛");
-    // 折叠/展开
-    const tg=document.getElementById('scToggle'), wp=document.getElementById('scWrap'), cv=document.getElementById('scChevron');
-    if(tg) tg.onclick=function(){ const hid=wp.style.display==='none'; wp.style.display=hid?'':'none'; cv.textContent=hid?'收起 ▾':'展开 ▸'; };
+    function dnum(d){ const a=d.split('/').map(Number); return 2026*10000+a[0]*100+a[1]; }
+
+    // 分组卡
+    (function(){
+      let g='<div class="sc-groups">';
+      for(const k in GROUPS){ g+='<div class="sc-grp"><h4>'+k+' 组</h4><ul>';
+        GROUPS[k].forEach((t,i)=>g+='<li>'+t+'<span>'+k+(i+1)+'</span></li>'); g+='</ul></div>'; }
+      document.getElementById('groupsScroll').innerHTML=g+'</div>';
+    })();
+
+    // 赛程卡(逐场 + 已结束自动折叠,可点击展开)
+    function dayBlock(d,wk,ms,tn){
+      const past=dnum(d)<tn;
+      let h='<div class="sc-day'+(past?' fold':'')+'"><div class="sc-dhead" onclick="this.parentNode.classList.toggle(\'fold\')">'
+        +'<span>北京 '+d+' · '+wk+' · '+ms.length+' 场'+(past?'<span class="sc-done">已结束</span>':'')+'</span>'
+        +'<span class="dchev">▾</span></div><div class="sc-dbody">';
+      ms.forEach(m=> h+='<div class="sc-match"><span class="t">'+m[0]+'</span><span class="vs">'+m[1]+'</span><span class="gp">'+m[2]+'组</span></div>');
+      return h+'</div></div>';
+    }
+    (function(){
+      const tn=todayNum(); let h='';
+      h+='<div class="blocktitle scb">第 1 轮</div>';
+      for(const d in FIX1) h+=dayBlock(d,FIX1[d][0],FIX1[d][1],tn);
+      h+='<div class="blocktitle scb" style="margin-top:14px">第 2 轮</div>';
+      for(const d in FIX2) h+=dayBlock(d,FIX2[d][0],FIX2[d][1],tn);
+      h+='<div class="blocktitle scb" style="margin-top:14px">第 3 轮(每组同时开球)</div><div class="sc-chips">';
+      MD[3].forEach(r=> h+='<div class="sc-chip"><div class="d">'+r[0]+'<small>当地'+r[1]+'</small></div><div class="g">'+r[2]+'</div></div>');
+      h+='</div>';
+      h+='<div class="blocktitle scb" style="margin-top:14px">淘汰赛(对阵待小组赛后揭晓)</div>';
+      ["32强","16强","8强","4强","决赛"].forEach(s=>{ const k=KO[s];
+        h+='<div class="sc-ko-mini"><span class="kn">'+s+' <span class="sc-tag">'+k.n+'</span></span><span class="kd">'+k.d+'</span></div>'; });
+      document.getElementById('fixScroll').innerHTML=h;
+    })();
   })();
   </script>
   <!-- =================== 赛程结束 =================== -->
@@ -735,6 +772,31 @@ function zh(name){
 const KEYSTORE='wc_odds_apikey';
 try{ const k=localStorage.getItem(KEYSTORE); if(k)document.getElementById('apiKey').value=k; }catch(e){}
 
+/* 拉取的比赛列表缓存一天,免重复拉取、可点击查阅 */
+const ODDSCACHE='wc_odds_list_v1';
+function renderMatchList(data){
+  const list=document.getElementById('apiList'); list.innerHTML='';
+  data.slice(0,60).forEach(ev=>{
+    const od=extract(ev); if(!od)return;
+    const b=document.createElement('button'); b.className='matchbtn';
+    b.innerHTML=`<span>${zh(ev.home_team)} vs ${zh(ev.away_team)}</span>
+      <span class="od">${od.H} / ${od.D} / ${od.A}${od.over?'　O'+od.line+' '+od.over:''}</span>`;
+    b.onclick=()=>{loadInto(ev,od);};
+    list.appendChild(b);
+  });
+}
+function loadOddsCache(){
+  try{
+    const c=JSON.parse(localStorage.getItem(ODDSCACHE)||'null');
+    if(!c||!c.data||!c.data.length||Date.now()-c.ts>24*3600*1000) return;
+    renderMatchList(c.data);
+    const t=new Date(c.ts).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    const msg=document.getElementById('apiMsg');
+    msg.className='apimsg'; msg.textContent=`已显示缓存的比赛列表(${t} 拉取 · ${c.data.length} 场)。直接点任意一场灌入赔率;需要更新赔率再点上方「拉取」。`;
+    const det=document.querySelector('details.api'); if(det) det.open=true;
+  }catch(e){}
+}
+
 async function fetchOdds(){
   const key=document.getElementById('apiKey').value.trim();
   const sport=document.getElementById('sportKey').value.trim()||'soccer_fifa_world_cup';
@@ -754,18 +816,10 @@ async function fetchOdds(){
     const data=await r.json();
     if(!data.length){msg.className='apimsg';msg.textContent='该赛事当前没有可用赔率(可能不在比赛窗口)。可改赛事 key,或直接手动输入。';return;}
     const rem=r.headers.get('x-requests-remaining');
+    try{ localStorage.setItem(ODDSCACHE,JSON.stringify({ts:Date.now(),data})); }catch(e){}
+    renderMatchList(data);
     msg.className='apimsg ok';
-    msg.textContent=`已拉取 ${data.length} 场。点任意一场把赔率灌入左侧。`+(rem?`　剩余额度 ${rem}`:'');
-    data.slice(0,40).forEach(ev=>{
-      const od=extract(ev);
-      if(!od)return;
-      const b=document.createElement('button');
-      b.className='matchbtn';
-      b.innerHTML=`<span>${zh(ev.home_team)} vs ${zh(ev.away_team)}</span>
-        <span class="od">${od.H} / ${od.D} / ${od.A}${od.over?'　O'+od.line+' '+od.over:''}</span>`;
-      b.onclick=()=>{loadInto(ev,od);};
-      list.appendChild(b);
-    });
+    msg.textContent=`已拉取 ${data.length} 场(已缓存,今日可重复查阅,无需再拉)。`+(rem?`　剩余额度 ${rem}`:'');
   }catch(e){
     msg.className='apimsg err';
     msg.innerHTML='浏览器直连失败(常见原因:网络限制或 CORS)。可改用手动输入,或在本地用一个小代理转发。';
@@ -865,6 +919,7 @@ function addCalc(mode){
 }
 
 renderCalc();    // 串关计算器初始态(含本机暂存的腿)
+loadOddsCache(); // 显示今天缓存的比赛列表(免重复拉取)
 run();           // 首屏用默认赔率渲染一次
 </script>
 </body>
