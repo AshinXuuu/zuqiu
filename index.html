@@ -298,17 +298,30 @@
       .sc-ko-head .d{font-size:13px;color:var(--accent);font-weight:600}
       .sc-ko-sub{font-size:13px;color:var(--ink-soft);margin:0 0 14px}
       .sc-flow{font-size:12.5px;color:var(--ink-faint);margin-top:6px}
+      /* 每日逐场赛程 */
+      .sc-day{margin-bottom:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+      .sc-dhead{background:var(--accent-soft);padding:7px 12px;font-size:12.5px;font-weight:600;
+        color:var(--accent);display:flex;justify-content:space-between}
+      .sc-match{display:flex;align-items:center;gap:10px;padding:7px 12px;
+        border-top:1px solid var(--line);font-size:13.5px}
+      .sc-match .t{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;width:46px}
+      .sc-match .vs{flex:1;min-width:0}
+      .sc-match .gp{font-size:10.5px;color:var(--ink-faint);background:#f3f3f1;
+        border-radius:5px;padding:1px 6px;white-space:nowrap}
     </style>
 
-    <h2>世界杯 2026 · 赛程(北京时间)</h2>
-    <div class="sc-note">
-      美加墨合办,48 队 104 场,<b>当地 6/11 – 7/19</b>。北京时间 = 美东 +12 小时(美西 +15),
-      所以美国当地下午/晚上的比赛,基本都是<b>北京次日凌晨到上午</b>。下方日期均已换算为北京时间(括号内为当地日期)。
-      淘汰赛对阵需<b>小组赛结束后</b>才揭晓,此处先列准确的轮次、日期与晋级规则。
+    <h2 id="scToggle" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none">
+      <span>世界杯 2026 · 赛程(北京时间)</span>
+      <span id="scChevron" style="font-size:12px;color:var(--accent);font-weight:600">收起 ▾</span>
+    </h2>
+    <div id="scWrap">
+      <div class="sc-note">
+        美加墨合办,48 队 104 场。下方时间<b>均为北京时间</b>(美东 +12 小时)。
+        小组赛第 1、2 轮已列出<b>每天几点几场</b>;淘汰赛对阵需小组赛后才揭晓,先列轮次、日期与晋级规则。
+      </div>
+      <div class="sc-tabs" id="scTabs"></div>
+      <div id="scBody"></div>
     </div>
-
-    <div class="sc-tabs" id="scTabs"></div>
-    <div id="scBody"></div>
   </section>
   <script>
   "use strict";
@@ -337,6 +350,34 @@
       3:[["6/25","6/24","A、B、C 组"],["6/26","6/25","D、E、F 组"],
          ["6/27","6/26","G、H、I 组"],["6/28","6/27","J、K、L 组"]]
     };
+    // 逐场赛程(北京时间;美东 ET+12 小时换算)。键=北京日期 -> [星期, [[时间,对阵,组]...]]
+    const FIX1 = {
+      "6/12":["周五",[["03:00","墨西哥 vs 南非","A"],["10:00","韩国 vs 捷克","A"]]],
+      "6/13":["周六",[["03:00","加拿大 vs 波黑","B"],["09:00","美国 vs 巴拉圭","D"]]],
+      "6/14":["周日",[["03:00","卡塔尔 vs 瑞士","B"],["06:00","巴西 vs 摩洛哥","C"],["09:00","海地 vs 苏格兰","C"],["12:00","澳大利亚 vs 土耳其","D"]]],
+      "6/15":["周一",[["01:00","德国 vs 库拉索","E"],["04:00","荷兰 vs 日本","F"],["07:00","科特迪瓦 vs 厄瓜多尔","E"],["10:00","瑞典 vs 突尼斯","F"]]],
+      "6/16":["周二",[["01:00","西班牙 vs 佛得角","H"],["06:00","比利时 vs 埃及","G"],["06:00","沙特 vs 乌拉圭","H"],["12:00","伊朗 vs 新西兰","G"]]],
+      "6/17":["周三",[["03:00","法国 vs 塞内加尔","I"],["06:00","伊拉克 vs 挪威","I"],["09:00","阿根廷 vs 阿尔及利亚","J"],["12:00","奥地利 vs 约旦","J"]]],
+      "6/18":["周四",[["01:00","葡萄牙 vs 刚果(金)","K"],["04:00","英格兰 vs 克罗地亚","L"],["07:00","加纳 vs 巴拿马","L"],["10:00","乌兹别克斯坦 vs 哥伦比亚","K"]]]
+    };
+    const FIX2 = {
+      "6/19":["周五",[["00:00","捷克 vs 南非","A"],["03:00","瑞士 vs 波黑","B"],["06:00","加拿大 vs 卡塔尔","B"],["09:00","墨西哥 vs 韩国","A"]]],
+      "6/20":["周六",[["03:00","美国 vs 澳大利亚","D"],["06:00","苏格兰 vs 摩洛哥","C"],["09:00","巴西 vs 海地","C"],["12:00","土耳其 vs 巴拉圭","D"]]],
+      "6/21":["周日",[["01:00","荷兰 vs 瑞典","F"],["04:00","德国 vs 科特迪瓦","E"],["08:00","厄瓜多尔 vs 库拉索","E"],["12:00","突尼斯 vs 日本","F"]]],
+      "6/22":["周一",[["00:00","西班牙 vs 沙特","H"],["03:00","比利时 vs 伊朗","G"],["06:00","乌拉圭 vs 佛得角","H"],["09:00","新西兰 vs 埃及","G"]]],
+      "6/23":["周二",[["01:00","阿根廷 vs 奥地利","J"],["05:00","法国 vs 伊拉克","I"],["08:00","挪威 vs 塞内加尔","I"],["11:00","约旦 vs 阿尔及利亚","J"]]],
+      "6/24":["周三",[["01:00","葡萄牙 vs 乌兹别克斯坦","K"],["04:00","英格兰 vs 加纳","L"],["07:00","巴拿马 vs 克罗地亚","L"],["10:00","哥伦比亚 vs 刚果(金)","K"]]]
+    };
+    function fixHTML(title, FIX){
+      let h='<div class="blocktitle scb">'+title+'</div>';
+      for(const d in FIX){
+        const wk=FIX[d][0], ms=FIX[d][1];
+        h+='<div class="sc-day"><div class="sc-dhead"><span>北京 '+d+' · '+wk+'</span><span>'+ms.length+' 场</span></div>';
+        ms.forEach(m=>{ h+='<div class="sc-match"><span class="t">'+m[0]+'</span><span class="vs">'+m[1]+'</span><span class="gp">'+m[2]+'组</span></div>'; });
+        h+='</div>';
+      }
+      return h;
+    }
     const KO = {
       "32强":{d:"北京 6/29 – 7/4(当地 6/28 – 7/3)",n:"16 场",
         sub:"小组赛每组前 2 名 + 8 个成绩最好的第 3 名 = 32 队晋级。本届首次设 32 强淘汰赛。",
@@ -362,15 +403,14 @@
       }
       g += '</div>';
       let cal = '<div class="sc-cal">';
-      [1,2,3].forEach(m=>{
-        cal += '<div class="blocktitle scb">小组赛 第 '+m+' 轮</div><div class="sc-chips">';
-        MD[m].forEach(r=>{
-          cal += '<div class="sc-chip"><div class="d">'+r[0]+
-            '<small>当地'+r[1]+'</small></div><div class="g">'+r[2]+'</div></div>';
-        });
-        cal += '</div>';
+      cal += fixHTML('小组赛 第 1 轮 · 每日逐场', FIX1);
+      cal += fixHTML('小组赛 第 2 轮 · 每日逐场', FIX2);
+      cal += '<div class="blocktitle scb">小组赛 第 3 轮(每组同时开球)</div><div class="sc-chips">';
+      MD[3].forEach(r=>{
+        cal += '<div class="sc-chip"><div class="d">'+r[0]+
+          '<small>当地'+r[1]+'</small></div><div class="g">'+r[2]+'</div></div>';
       });
-      cal += '</div>';
+      cal += '</div></div>';
       const opener = '<div class="sc-row" style="background:var(--accent-soft);border-radius:9px;padding:9px 11px;margin-bottom:14px">'+
         '<div class="sc-bj">北京 6/12 03:00<small>当地 6/11 15:00</small></div>'+
         '<div class="sc-desc"><b>揭幕战</b> 墨西哥 vs 南非 · 阿兹特克球场<span class="sc-tag" style="margin-left:8px">已确定</span></div></div>';
@@ -396,6 +436,9 @@
       b.onclick=()=>render(s); tabs.appendChild(b);
     });
     render("小组赛");
+    // 折叠/展开
+    const tg=document.getElementById('scToggle'), wp=document.getElementById('scWrap'), cv=document.getElementById('scChevron');
+    if(tg) tg.onclick=function(){ const hid=wp.style.display==='none'; wp.style.display=hid?'':'none'; cv.textContent=hid?'收起 ▾':'展开 ▸'; };
   })();
   </script>
   <!-- =================== 赛程结束 =================== -->
