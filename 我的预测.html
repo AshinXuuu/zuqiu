@@ -56,11 +56,11 @@
   .phead{display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding:9px 13px;background:var(--accent-soft);flex-wrap:wrap}
   .phead .n{font-weight:600;font-size:13.5px}
   .phead .meta{font-size:11.5px;color:var(--ink-soft)}
-  .pleg{display:grid;grid-template-columns:1fr 50px auto auto;gap:8px;align-items:center;padding:8px 13px;border-top:1px solid var(--line);font-size:13px}
-  .pleg .tm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pleg .sc{font-weight:600;text-align:center}
+  .pleg{display:grid;grid-template-columns:1fr 78px auto;gap:8px;align-items:center;padding:8px 13px;border-top:1px solid var(--line);font-size:13px}
+  .pleg .tm{overflow:hidden;text-overflow:ellipsis}
+  .pleg .scs{font-size:11.5px;color:var(--accent);font-weight:600}
   .pres{font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px}
-  @media(max-width:560px){.probrow{grid-template-columns:1fr 1fr}.pleg{grid-template-columns:1fr 44px auto}.pleg .pe{display:none}}
+  @media(max-width:560px){.probrow{grid-template-columns:1fr 1fr}.pleg{grid-template-columns:1fr 70px auto}}
 </style>
 </head>
 <body>
@@ -129,6 +129,10 @@ function parseActual(s){ const m=(''+(s||'')).match(/^\s*(\d+)\s*[-:]\s*(\d+)\s*
 const isParlay=r=>r.type==='parlay'&&Array.isArray(r.legs);
 const exactHit=(l,a)=>a&&a[0]===l.si&&a[1]===l.sj;
 const sideOf=a=>a[0]>a[1]?'H':(a[0]<a[1]?'A':'D');
+// 复式串关:每腿可含多个比分,命中其一即算该腿中
+const legProb=l=> l.scores? l.scores.reduce((x,s)=>x+s.p,0) : l.p;
+const legHit=(l,a)=> !!a && (l.scores? l.scores.some(s=>s.si===a[0]&&s.sj===a[1]) : (a[0]===l.si&&a[1]===l.sj));
+const legLabel=l=> l.scores? l.scores.map(s=>s.si+'-'+s.sj).join(' / ') : (l.si+'-'+l.sj);
 
 try{ const k=localStorage.getItem(KEYSTORE); if(k)document.getElementById('apiKey').value=k; }catch(e){}
 
@@ -163,18 +167,17 @@ function render(){
   else{
     const COLORS=['#2f6b4f','#7a5a8c','#9a6b3f','#3f6b9a','#b0894a'];
     pb.innerHTML=parlays.slice().reverse().map((r,ri)=>{
-      const prob=r.legs.reduce((a,l)=>a*l.p,1);
+      const prob=r.legs.reduce((a,l)=>a*legProb(l),1);
       const settled=r.legs.every(l=>parseActual(l.actual));
-      const won=settled&&r.legs.every(l=>exactHit(l,parseActual(l.actual)));
+      const won=settled&&r.legs.every(l=>legHit(l,parseActual(l.actual)));
       let res='<span class="pres" style="background:#f0eef2;color:var(--ink-faint)">待定</span>';
       if(settled) res=won?'<span class="pres" style="background:#e7f0ea;color:var(--home)">✓ 全中</span>':'<span class="pres" style="background:#f7efe8;color:var(--warn)">✗ 未中</span>';
       const legs=r.legs.map((l,li)=>{
         const a=parseActual(l.actual);
-        const eh=a?(exactHit(l,a)?'<b style="color:var(--home)">✓</b>':'<span style="color:var(--warn)">✗</span>'):'<span style="color:var(--ink-faint)">–</span>';
+        const eh=a?(legHit(l,a)?'<b style="color:var(--home)">✓</b>':'<span style="color:var(--warn)">✗</span>'):'<span style="color:var(--ink-faint)">–</span>';
         return `<div class="pleg">
-          <span class="tm">${l.home} vs ${l.away}</span>
-          <span class="sc">${l.si}-${l.sj}</span>
-          <input class="actin pe" style="width:72px" value="${l.actual||''}" placeholder="实际" onchange="setLeg('${r.id}',${li},this.value)">
+          <span class="tm">${l.home} vs ${l.away}<br><span class="scs">${legLabel(l)}</span></span>
+          <input class="actin" style="width:74px" value="${l.actual||''}" placeholder="实际" onchange="setLeg('${r.id}',${li},this.value)">
           <span style="text-align:center">${eh}</span></div>`;
       }).join('');
       return `<div class="pcard" style="border-left-color:${COLORS[ri%COLORS.length]}">
@@ -214,10 +217,10 @@ function computeStats(singles,parlays){
   }else{ S('sSettled','0'); S('sExact','–'); S('sSide','–'); document.getElementById('calTab').innerHTML=''; }
   // 串关
   const ps=parlays.filter(r=>r.legs.every(l=>parseActual(l.actual)));
-  const won=ps.filter(r=>r.legs.every(l=>exactHit(l,parseActual(l.actual))));
+  const won=ps.filter(r=>r.legs.every(l=>legHit(l,parseActual(l.actual))));
   S('pSettled',ps.length);
   S('pWon',won.length);
-  S('pAvgHit',parlays.length?(mean(parlays.map(r=>r.legs.reduce((a,l)=>a*l.p,1)))*100).toFixed(2)+'<small>%</small>':'–');
+  S('pAvgHit',parlays.length?(mean(parlays.map(r=>r.legs.reduce((a,l)=>a*legProb(l),1)))*100).toFixed(2)+'<small>%</small>':'–');
   // 结论
   let v='';
   if(ss.length){
@@ -286,7 +289,7 @@ function exportCSV(){
   const rows=[['类型','串编号','比赛','预测比分','模型概率','实际比分','精确命中','记录日期']];
   PREDS.forEach((r,ri)=>{
     if(isParlay(r)){ r.legs.forEach(l=>{ const a=parseActual(l.actual);
-      rows.push(['串关','P'+(ri+1),l.home+' vs '+l.away,l.si+'-'+l.sj,(l.p*100).toFixed(1)+'%',l.actual||'',a?(exactHit(l,a)?1:0):'',r.ts||'']); }); }
+      rows.push(['串关','P'+(ri+1),l.home+' vs '+l.away,legLabel(l),(legProb(l)*100).toFixed(1)+'%',l.actual||'',a?(legHit(l,a)?1:0):'',r.ts||'']); }); }
     else{ const a=parseActual(r.actual);
       rows.push(['单场','',r.home+' vs '+r.away,r.si+'-'+r.sj,(r.p*100).toFixed(1)+'%',r.actual||'',a?(exactHit(r,a)?1:0):'',r.ts||'']); }
   });

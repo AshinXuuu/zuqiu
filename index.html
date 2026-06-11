@@ -239,6 +239,17 @@
   .cstat .v{display:block;font-size:16px;font-weight:600;margin-top:2px}
   .calc-actions{display:flex;flex-direction:column;gap:8px;margin-top:12px}
   .calc-empty{font-size:12px;color:var(--ink-faint);padding:8px 0}
+  /* 复式:每场一组,多个比分 */
+  .calc-match{padding:9px 0;border-bottom:1px solid var(--line)}
+  .calc-match:last-child{border-bottom:none}
+  .cm-head{display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:6px}
+  .cm-head .tm{font-size:12.5px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cm-head .cm-sub{font-size:10.5px;color:var(--ink-faint);white-space:nowrap}
+  .scchips{display:flex;flex-wrap:wrap;gap:5px}
+  .scchip{display:inline-flex;align-items:center;gap:2px;font-size:12px;font-weight:600;color:var(--accent);
+    background:var(--accent-soft);border-radius:6px;padding:2px 4px 2px 8px;font-variant-numeric:tabular-nums}
+  .scchip button{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:13px;line-height:1;padding:0 3px}
+  .scchip button:hover{color:var(--warn)}
 </style>
 </head>
 <body>
@@ -537,12 +548,12 @@
 
     <!-- 串关计算器(腿来自「最可能的比分」的 ＋串) -->
     <section class="card" id="calc">
-      <h2>串关计算器</h2>
-      <p class="calchint">在右侧「最可能的比分」点 <b>＋串</b> 加入(每场限一腿,最多 5 场)。再选「单场」或「串关」加入「我的预测」。</p>
+      <h2>串关计算器(复式)</h2>
+      <p class="calchint">在右侧「最可能的比分」点 <b>＋串</b> 加入。<b>每场可选多个比分</b>,最多 5 场;每场<b>命中其一</b>即算该场中。再选「单场」或「串关」加入「我的预测」。</p>
       <div id="calcBody"></div>
       <div id="calcSum" style="display:none">
         <div class="calc-stats">
-          <div class="cstat"><span class="k">串数</span><span class="v" id="cN">–</span></div>
+          <div class="cstat"><span class="k">复式注数</span><span class="v" id="cN">–</span></div>
           <div class="cstat"><span class="k">理论中奖率</span><span class="v" id="cHit">–</span></div>
           <div class="cstat"><span class="k">组合公允赔率</span><span class="v" id="cOdds">–</span></div>
         </div>
@@ -916,6 +927,11 @@ function loadInto(ev,od){
 /* ---------- 串关计算器(腿来自「最可能的比分」的 ＋串) ---------- */
 const CALCKEY='wc_calc_v1';
 let CALC=[]; try{ CALC=JSON.parse(localStorage.getItem(CALCKEY))||[]; }catch(e){ CALC=[]; }
+// 迁移旧格式(每条=一场一个比分)→ 新格式(按场分组,每场多比分)
+if(CALC.length && CALC[0] && !CALC[0].scores){
+  const mp={}; CALC.forEach(l=>{ const g=mp[l.evKey]||(mp[l.evKey]={evKey:l.evKey,home:l.home,away:l.away,scores:[]});
+    g.scores.push({si:l.si,sj:l.sj,p:l.p}); }); CALC=Object.values(mp);
+}
 function saveCalc(){ try{ localStorage.setItem(CALCKEY,JSON.stringify(CALC)); }catch(e){} }
 function _loadPreds(){ try{ return JSON.parse(localStorage.getItem('wc_predictions_v1'))||[]; }catch(e){ return []; } }
 function _savePreds(a){ try{ localStorage.setItem('wc_predictions_v1',JSON.stringify(a)); }catch(e){} }
@@ -923,47 +939,56 @@ function _savePreds(a){ try{ localStorage.setItem('wc_predictions_v1',JSON.strin
 function addScoreLeg(i,j,p){
   if(!window.LAST){ alert('请先在上方填赔率并“计算比分概率”'); return; }
   const L=window.LAST, evKey=L.home+'|'+L.away;
-  const leg={ id:Date.now()+'_'+Math.floor(Math.random()*1e4), evKey,
-    home:L.home, away:L.away, si:i, sj:j, p:+p };
-  const k=CALC.findIndex(x=>x.evKey===evKey);
-  if(k>=0){ CALC[k]=leg; }                          // 同场只能一腿:替换
-  else{ if(CALC.length>=5){ alert('最多串 5 场'); return; } CALC.push(leg); }
+  let g=CALC.find(x=>x.evKey===evKey);
+  if(!g){ if(CALC.length>=5){ alert('最多串 5 场'); return; } g={evKey,home:L.home,away:L.away,scores:[]}; CALC.push(g); }
+  if(g.scores.some(s=>s.si===i&&s.sj===j)){ /* 该比分已选,忽略 */ }
+  else{ if(g.scores.length>=8){ alert('单场最多选 8 个比分'); return; } g.scores.push({si:i,sj:j,p:+p}); }
   saveCalc(); renderCalc();
   const el=document.getElementById('calc'); if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-function removeCalcLeg(id){ CALC=CALC.filter(l=>l.id!==id); saveCalc(); renderCalc(); }
+function removeCalcScore(evKey,idx){
+  const g=CALC.find(x=>x.evKey===evKey); if(!g)return;
+  g.scores.splice(idx,1);
+  if(!g.scores.length) CALC=CALC.filter(x=>x.evKey!==evKey);
+  saveCalc(); renderCalc();
+}
 function clearCalc(){ CALC=[]; saveCalc(); renderCalc(); }
 function renderCalc(){
   const body=document.getElementById('calcBody'), sum=document.getElementById('calcSum');
   if(!body)return;
   if(!CALC.length){
-    body.innerHTML='<div class="calc-empty">还没有比分。在右侧「最可能的比分」点 ＋串 加入。</div>';
+    body.innerHTML='<div class="calc-empty">还没有比分。在右侧「最可能的比分」点 ＋串 加入(每场可选多个比分)。</div>';
     sum.style.display='none'; return;
   }
-  body.innerHTML=CALC.map(l=>`<div class="calc-leg">
-    <span class="sc">${l.si}-${l.sj}</span>
-    <span class="mid"><div class="tm">${l.home} vs ${l.away}</div>
-      <div class="pp">模型概率 ${(l.p*100).toFixed(1)}% · 公允 ${(1/l.p).toFixed(1)}</div></span>
-    <button class="delrow" onclick="removeCalcLeg('${l.id}')">×</button></div>`).join('');
-  const prob=CALC.reduce((a,l)=>a*l.p,1), odds=1/prob;
+  body.innerHTML=CALC.map(g=>{
+    const sp=g.scores.reduce((a,s)=>a+s.p,0);
+    const chips=g.scores.map((s,idx)=>`<span class="scchip">${s.si}-${s.sj}<button onclick="removeCalcScore('${g.evKey}',${idx})">×</button></span>`).join('');
+    return `<div class="calc-match"><div class="cm-head"><span class="tm">${g.home} vs ${g.away}</span>
+      <span class="cm-sub">${g.scores.length} 比分 · 命中率 ${(sp*100).toFixed(1)}%</span></div>
+      <div class="scchips">${chips}</div></div>`;
+  }).join('');
+  const winP=CALC.reduce((a,g)=>a*g.scores.reduce((x,s)=>x+s.p,0),1);
+  const combos=CALC.reduce((a,g)=>a*g.scores.length,1);
   sum.style.display='block';
-  document.getElementById('cN').textContent=CALC.length+(CALC.length>1?' 串 1':' 场');
-  document.getElementById('cHit').innerHTML=(prob*100).toFixed(prob<0.1?2:1)+'<small>%</small>';
-  document.getElementById('cOdds').textContent=odds.toFixed(2);
+  document.getElementById('cN').textContent=CALC.length+' 场 / '+combos+' 注';
+  document.getElementById('cHit').innerHTML=(winP*100).toFixed(winP<0.1?2:1)+'<small>%</small>';
+  document.getElementById('cOdds').textContent=(1/winP).toFixed(2);
 }
 function addCalc(mode){
   if(!CALC.length){ alert('先用 ＋串 加入比分'); return; }
   const preds=_loadPreds(), now=new Date().toLocaleDateString('zh-CN');
-  const mk=l=>({home:l.home,away:l.away,si:l.si,sj:l.sj,p:l.p,
-    side:(l.si>l.sj?'H':(l.si<l.sj?'A':'D')),actual:''});
+  const rid=()=>Date.now()+'_'+Math.floor(Math.random()*1e6);
   if(mode==='single'){
-    CALC.forEach(l=>preds.push({id:Date.now()+'_'+Math.floor(Math.random()*1e4),
-      ts:now, type:'single', ...mk(l)}));
-    _savePreds(preds); alert('已按单场加入「我的预测」'+CALC.length+' 条。');
+    let cnt=0;
+    CALC.forEach(g=>g.scores.forEach(s=>{ preds.push({id:rid(),ts:now,type:'single',
+      home:g.home,away:g.away,si:s.si,sj:s.sj,p:s.p,
+      side:(s.si>s.sj?'H':(s.si<s.sj?'A':'D')),actual:''}); cnt++; }));
+    _savePreds(preds); alert('已按单场加入「我的预测」'+cnt+' 条。');
   }else{
-    preds.push({id:Date.now()+'_'+Math.floor(Math.random()*1e4),
-      ts:now, type:'parlay', legs:CALC.map(mk)});
-    _savePreds(preds); alert('已按串关(共 '+CALC.length+' 场,全中才算赢)加入「我的预测」。');
+    preds.push({id:rid(),ts:now,type:'parlay',
+      legs:CALC.map(g=>({home:g.home,away:g.away,
+        scores:g.scores.map(s=>({si:s.si,sj:s.sj,p:s.p})),actual:''}))});
+    _savePreds(preds); alert('已按串关(共 '+CALC.length+' 场,每场命中其一即算该场中,全部命中才赢)加入「我的预测」。');
   }
   CALC=[]; saveCalc(); renderCalc();
 }
