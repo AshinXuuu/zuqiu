@@ -325,6 +325,9 @@
       .sc-ko-mini:last-child{border-bottom:none}
       .sc-ko-mini .kn{font-weight:600}
       .sc-ko-mini .kd{color:var(--ink-soft);font-size:12px;text-align:right}
+      .sc-match.click{cursor:pointer}
+      .sc-match.click:hover{background:var(--accent-soft)}
+      .sc-match .odtag{font-size:10.5px;color:var(--accent);font-weight:600;white-space:nowrap}
     </style>
 
     <section class="card schedcard">
@@ -332,9 +335,26 @@
       <div class="sched-scroll" id="groupsScroll"></div>
     </section>
     <section class="card schedcard">
-      <h2>小组赛程 · 北京时间</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
+        <h2 style="margin:0">世界杯赛程 · 北京时间</h2>
+        <button class="addbtn" onclick="scheduleFetch()">拉取赔率</button>
+      </div>
+      <div class="apimsg" id="fixMsg" style="margin:0 0 8px"></div>
       <div class="sched-scroll" id="fixScroll"></div>
     </section>
+  </div>
+
+  <!-- API key 配置弹框 -->
+  <div id="keyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;align-items:center;justify-content:center;padding:20px">
+    <div style="background:#fff;border-radius:14px;padding:22px;max-width:360px;width:100%">
+      <h3 style="margin:0 0 8px;font-size:15px;color:var(--ink)">填入 The Odds API Key</h3>
+      <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;line-height:1.5">在 <a href="https://the-odds-api.com" target="_blank">the-odds-api.com</a> 注册可拿免费 key。只存在你本机浏览器,不上传。</p>
+      <input id="keyModalInput" type="text" placeholder="粘贴 key" style="width:100%;padding:9px 11px;border:1px solid var(--line-strong);border-radius:9px;font-family:inherit;margin-bottom:12px">
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="mini" onclick="closeKeyModal()">取消</button>
+        <button class="go" style="width:auto;margin:0;padding:9px 18px" onclick="saveKeyAndFetch()">保存并拉取</button>
+      </div>
+    </div>
   </div>
   <script>
   "use strict";
@@ -369,7 +389,7 @@
       "6/13":["周六",[["03:00","加拿大 vs 波黑","B"],["09:00","美国 vs 巴拉圭","D"]]],
       "6/14":["周日",[["03:00","卡塔尔 vs 瑞士","B"],["06:00","巴西 vs 摩洛哥","C"],["09:00","海地 vs 苏格兰","C"],["12:00","澳大利亚 vs 土耳其","D"]]],
       "6/15":["周一",[["01:00","德国 vs 库拉索","E"],["04:00","荷兰 vs 日本","F"],["07:00","科特迪瓦 vs 厄瓜多尔","E"],["10:00","瑞典 vs 突尼斯","F"]]],
-      "6/16":["周二",[["01:00","西班牙 vs 佛得角","H"],["06:00","比利时 vs 埃及","G"],["06:00","沙特 vs 乌拉圭","H"],["12:00","伊朗 vs 新西兰","G"]]],
+      "6/16":["周二",[["01:00","西班牙 vs 佛得角","H"],["06:00","比利时 vs 埃及","G"],["06:00","沙特阿拉伯 vs 乌拉圭","H"],["12:00","伊朗 vs 新西兰","G"]]],
       "6/17":["周三",[["03:00","法国 vs 塞内加尔","I"],["06:00","伊拉克 vs 挪威","I"],["09:00","阿根廷 vs 阿尔及利亚","J"],["12:00","奥地利 vs 约旦","J"]]],
       "6/18":["周四",[["01:00","葡萄牙 vs 刚果(金)","K"],["04:00","英格兰 vs 克罗地亚","L"],["07:00","加纳 vs 巴拿马","L"],["10:00","乌兹别克斯坦 vs 哥伦比亚","K"]]]
     };
@@ -377,7 +397,7 @@
       "6/19":["周五",[["00:00","捷克 vs 南非","A"],["03:00","瑞士 vs 波黑","B"],["06:00","加拿大 vs 卡塔尔","B"],["09:00","墨西哥 vs 韩国","A"]]],
       "6/20":["周六",[["03:00","美国 vs 澳大利亚","D"],["06:00","苏格兰 vs 摩洛哥","C"],["09:00","巴西 vs 海地","C"],["12:00","土耳其 vs 巴拉圭","D"]]],
       "6/21":["周日",[["01:00","荷兰 vs 瑞典","F"],["04:00","德国 vs 科特迪瓦","E"],["08:00","厄瓜多尔 vs 库拉索","E"],["12:00","突尼斯 vs 日本","F"]]],
-      "6/22":["周一",[["00:00","西班牙 vs 沙特","H"],["03:00","比利时 vs 伊朗","G"],["06:00","乌拉圭 vs 佛得角","H"],["09:00","新西兰 vs 埃及","G"]]],
+      "6/22":["周一",[["00:00","西班牙 vs 沙特阿拉伯","H"],["03:00","比利时 vs 伊朗","G"],["06:00","乌拉圭 vs 佛得角","H"],["09:00","新西兰 vs 埃及","G"]]],
       "6/23":["周二",[["01:00","阿根廷 vs 奥地利","J"],["05:00","法国 vs 伊拉克","I"],["08:00","挪威 vs 塞内加尔","I"],["11:00","约旦 vs 阿尔及利亚","J"]]],
       "6/24":["周三",[["01:00","葡萄牙 vs 乌兹别克斯坦","K"],["04:00","英格兰 vs 加纳","L"],["07:00","巴拿马 vs 克罗地亚","L"],["10:00","哥伦比亚 vs 刚果(金)","K"]]]
     };
@@ -453,16 +473,23 @@
       document.getElementById('groupsScroll').innerHTML=g+'</div>';
     })();
 
-    // 赛程卡(逐场 + 已结束自动折叠,可点击展开)
+    // 赛程卡(逐场 + 已结束自动折叠;有赔率的场次可点击看概率)
     function dayBlock(d,wk,ms,tn){
       const past=dnum(d)<tn;
       let h='<div class="sc-day'+(past?' fold':'')+'"><div class="sc-dhead" onclick="this.parentNode.classList.toggle(\'fold\')">'
         +'<span>北京 '+d+' · '+wk+' · '+ms.length+' 场'+(past?'<span class="sc-done">已结束</span>':'')+'</span>'
         +'<span class="dchev">▾</span></div><div class="sc-dbody">';
-      ms.forEach(m=> h+='<div class="sc-match"><span class="t">'+m[0]+'</span><span class="vs">'+m[1]+'</span><span class="gp">'+m[2]+'组</span></div>');
+      ms.forEach(m=>{
+        const p=m[1].split(' vs '), key=[p[0],p[1]].sort().join('|');
+        const has=window.ODDS_INDEX&&window.ODDS_INDEX[key];
+        h+='<div class="sc-match'+(has?' click':'')+'"'+(has?' onclick="loadFix(\''+key+'\')"':'')
+          +'><span class="t">'+m[0]+'</span><span class="vs">'+m[1]+'</span>'
+          +'<span class="gp">'+m[2]+'组</span>'+(has?'<span class="odtag">看赔率›</span>':'')+'</div>';
+      });
       return h+'</div></div>';
     }
-    (function(){
+    // 暴露给主脚本调用(此时 loadFix/ODDS_INDEX 已就绪)
+    window.renderFixtures=function(){
       const tn=todayNum(); let h='';
       h+='<div class="blocktitle scb">第 1 轮</div>';
       for(const d in FIX1) h+=dayBlock(d,FIX1[d][0],FIX1[d][1],tn);
@@ -475,7 +502,7 @@
       ["32强","16强","8强","4强","决赛"].forEach(s=>{ const k=KO[s];
         h+='<div class="sc-ko-mini"><span class="kn">'+s+' <span class="sc-tag">'+k.n+'</span></span><span class="kd">'+k.d+'</span></div>'; });
       document.getElementById('fixScroll').innerHTML=h;
-    })();
+    };
   })();
   </script>
   <!-- =================== 赛程结束 =================== -->
@@ -774,6 +801,32 @@ try{ const k=localStorage.getItem(KEYSTORE); if(k)document.getElementById('apiKe
 
 /* 拉取的比赛列表缓存一天,免重复拉取、可点击查阅 */
 const ODDSCACHE='wc_odds_list_v1';
+let ODDS_INDEX={};
+function buildOddsIndex(data){
+  ODDS_INDEX={};
+  (data||[]).forEach(ev=>{ const od=extract(ev); if(!od)return;
+    const key=[zh(ev.home_team),zh(ev.away_team)].sort().join('|');
+    ODDS_INDEX[key]={ev,od}; });
+  window.ODDS_INDEX=ODDS_INDEX;
+}
+function loadFix(key){ const o=window.ODDS_INDEX&&window.ODDS_INDEX[key]; if(o) loadInto(o.ev,o.od); }
+function setFetchMsg(text,cls){ ['apiMsg','fixMsg'].forEach(id=>{const e=document.getElementById(id);
+  if(e){ e.className='apimsg'+(cls?(' '+cls):''); e.textContent=text; }}); }
+/* 赛程卡上的「拉取赔率」:有 key 直接拉,没 key 弹框配置 */
+function scheduleFetch(){
+  let key=''; try{key=localStorage.getItem(KEYSTORE)||'';}catch(e){}
+  const fld=document.getElementById('apiKey'); if(!key&&fld)key=fld.value.trim();
+  if(key){ fetchOdds(); } else { openKeyModal(); }
+}
+function openKeyModal(){ const m=document.getElementById('keyModal'); if(m){m.style.display='flex'; const i=document.getElementById('keyModalInput'); if(i)i.focus();} }
+function closeKeyModal(){ const m=document.getElementById('keyModal'); if(m)m.style.display='none'; }
+function saveKeyAndFetch(){
+  const k=document.getElementById('keyModalInput').value.trim();
+  if(!k){ return; }
+  try{ localStorage.setItem(KEYSTORE,k); }catch(e){}
+  const fld=document.getElementById('apiKey'); if(fld)fld.value=k;
+  closeKeyModal(); fetchOdds();
+}
 function renderMatchList(data){
   const list=document.getElementById('apiList'); list.innerHTML='';
   data.slice(0,60).forEach(ev=>{
@@ -789,6 +842,7 @@ function loadOddsCache(){
   try{
     const c=JSON.parse(localStorage.getItem(ODDSCACHE)||'null');
     if(!c||!c.data||!c.data.length||Date.now()-c.ts>24*3600*1000) return;
+    buildOddsIndex(c.data);
     renderMatchList(c.data);
     const t=new Date(c.ts).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
     const msg=document.getElementById('apiMsg');
@@ -798,31 +852,27 @@ function loadOddsCache(){
 }
 
 async function fetchOdds(){
-  const key=document.getElementById('apiKey').value.trim();
+  let key=document.getElementById('apiKey').value.trim();
+  if(!key){ try{key=localStorage.getItem(KEYSTORE)||'';}catch(e){} }
   const sport=document.getElementById('sportKey').value.trim()||'soccer_fifa_world_cup';
-  const msg=document.getElementById('apiMsg'), list=document.getElementById('apiList');
-  list.innerHTML=''; msg.className='apimsg'; msg.textContent='拉取中…';
-  if(!key){msg.className='apimsg err';msg.textContent='请先填入 API key。';return;}
+  if(!key){ setFetchMsg('请先填入 API key。','err'); openKeyModal(); return; }
   try{ localStorage.setItem(KEYSTORE,key); }catch(e){}
+  setFetchMsg('拉取中…');
   const url=`https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${encodeURIComponent(key)}&regions=eu&markets=h2h,totals&oddsFormat=decimal`;
   try{
     const r=await fetch(url);
-    if(!r.ok){
-      let detail=''; try{detail=(await r.json()).message||'';}catch(e){}
-      msg.className='apimsg err';
-      msg.textContent=`请求失败 (${r.status})。${detail|| '检查 key、赛事 key 是否正确,或免费额度是否用完。'}`;
-      return;
-    }
+    if(!r.ok){ let detail=''; try{detail=(await r.json()).message||'';}catch(e){}
+      setFetchMsg(`请求失败 (${r.status})。${detail||'检查 key、赛事 key 或免费额度。'}`,'err'); return; }
     const data=await r.json();
-    if(!data.length){msg.className='apimsg';msg.textContent='该赛事当前没有可用赔率(可能不在比赛窗口)。可改赛事 key,或直接手动输入。';return;}
+    if(!data.length){ setFetchMsg('该赛事当前没有可用赔率(可能不在比赛窗口)。可改赛事 key,或手动输入。',''); return; }
     const rem=r.headers.get('x-requests-remaining');
     try{ localStorage.setItem(ODDSCACHE,JSON.stringify({ts:Date.now(),data})); }catch(e){}
+    buildOddsIndex(data);
     renderMatchList(data);
-    msg.className='apimsg ok';
-    msg.textContent=`已拉取 ${data.length} 场(已缓存,今日可重复查阅,无需再拉)。`+(rem?`　剩余额度 ${rem}`:'');
+    if(window.renderFixtures) window.renderFixtures();
+    setFetchMsg(`已拉取 ${data.length} 场(已缓存,今日可重复查阅)。赛程里有赔率的场次现在标「看赔率›」可点击。`+(rem?`　剩余额度 ${rem}`:''),'ok');
   }catch(e){
-    msg.className='apimsg err';
-    msg.innerHTML='浏览器直连失败(常见原因:网络限制或 CORS)。可改用手动输入,或在本地用一个小代理转发。';
+    setFetchMsg('浏览器直连失败(网络或 CORS)。可手动输入赔率。','err');
   }
 }
 function extract(ev){
@@ -919,7 +969,8 @@ function addCalc(mode){
 }
 
 renderCalc();    // 串关计算器初始态(含本机暂存的腿)
-loadOddsCache(); // 显示今天缓存的比赛列表(免重复拉取)
+loadOddsCache(); // 读今日缓存→建赔率索引→底部列表
+if(window.renderFixtures) window.renderFixtures();  // 渲染赛程(有赔率的场次可点击)
 run();           // 首屏用默认赔率渲染一次
 </script>
 </body>
