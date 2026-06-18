@@ -542,8 +542,15 @@
         <div class="field"><label>小球</label><input type="number" step="0.01" id="oUnder" value="1.95"></div>
       </div>
 
+      <div class="blocktitle" style="margin-bottom:8px">让球(亚盘 · 可选)</div>
+      <div class="row3">
+        <div class="field"><label>让球线(主)</label><input type="number" step="0.25" id="ahLine" placeholder="-1.5"></div>
+        <div class="field"><label>让球主</label><input type="number" step="0.01" id="ahHome" placeholder="1.95"></div>
+        <div class="field"><label>让球客</label><input type="number" step="0.01" id="ahAway" placeholder="1.95"></div>
+      </div>
+
       <button class="go" onclick="run()">计算比分概率</button>
-      <p class="hint">最少需要胜平负 + 一组大小球。让球盘可不填 —— 净胜球的信息已包含在胜平负里。</p>
+      <p class="hint">最少需胜平负 + 大小球。<b>填上让球(亚盘)能更准定位强弱差</b>,悬殊场比分形状更贴近真实。接 The Odds API 会自动带入让球。</p>
     </section>
 
     <!-- 串关计算器(腿来自「最可能的比分」的 ＋串) -->
@@ -654,14 +661,28 @@ function devig(arr){ // 按比例去水位
   return {p:inv.map(x=>x/s), overround:s};
 }
 
-/* 拟合:coarse→fine 网格搜索 (lh,la,rho) 匹配市场公允概率 */
+/* 让球(亚盘):主队让 line 时,backing 主队的公允覆盖概率(push 记 0.5,支持 .25/.75 盘) */
+function ahHomeProb(M,line){
+  const md={};
+  for(let i=0;i<=MAXG;i++)for(let j=0;j<=MAXG;j++){const m=i-j; md[m]=(md[m]||0)+M[i][j];}
+  function half(h0){ let win=0,push=0;
+    for(const k in md){ const v=(+k)+h0; if(v>1e-9)win+=md[k]; else if(Math.abs(v)<1e-9)push+=md[k]; }
+    return win+0.5*push; }
+  const q=Math.round(line*4);
+  return (q%2!==0)?0.5*(half(line-0.25)+half(line+0.25)):half(line);
+}
+
+/* 拟合:coarse→fine 网格搜索 (lh,la,rho) 匹配市场公允概率(含可选让球) */
 function fit(target,line){
   function sse(lh,la,rho){
-    const m=implied(scoreMatrix(lh,la,rho),line);
-    return (m.H-target.H)**2+(m.D-target.D)**2+(m.A-target.A)**2+(m.Over-target.Over)**2;
+    const M=scoreMatrix(lh,la,rho);
+    const m=implied(M,line);
+    let e=(m.H-target.H)**2+(m.D-target.D)**2+(m.A-target.A)**2+(m.Over-target.Over)**2;
+    if(target.ah!=null) e+=2*(ahHomeProb(M,target.ahLine)-target.ah)**2;  // 让球权重稍高,强化强弱差
+    return e;
   }
   let best={lh:1.4,la:1.1,rho:-0.05,e:1e9};
-  let loH=0.15,hiH=3.6,loA=0.15,hiA=3.2,loR=-0.18,hiR=0.05;
+  let loH=0.10,hiH=4.5,loA=0.10,hiA=3.2,loR=-0.18,hiR=0.05;
   for(let pass=0;pass<4;pass++){
     const nH=24,nA=24,nR=7;
     for(let a=0;a<=nH;a++){const lh=loH+(hiH-loH)*a/nH;
@@ -693,6 +714,10 @@ function run(){
 
   const d1=devig([oH,oD,oA]), d2=devig([oOver,oUnder]);
   const target={H:d1.p[0],D:d1.p[1],A:d1.p[2],Over:d2.p[0]};
+  const ahLine=parseFloat(document.getElementById('ahLine').value),
+        ahH=parseFloat(document.getElementById('ahHome').value),
+        ahA=parseFloat(document.getElementById('ahAway').value);
+  if(isFinite(ahLine)&&ahH>1&&ahA>1){ target.ah=devig([ahH,ahA]).p[0]; target.ahLine=ahLine; }
   const f=fit(target,line);
   const M=scoreMatrix(f.lh,f.la,f.rho);
   const im=implied(M,line);
@@ -869,7 +894,7 @@ async function fetchOdds(){
   if(!key){ setFetchMsg('请先填入 API key。','err'); openKeyModal(); return; }
   try{ localStorage.setItem(KEYSTORE,key); }catch(e){}
   setFetchMsg('拉取中…');
-  const url=`https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${encodeURIComponent(key)}&regions=eu&markets=h2h,totals&oddsFormat=decimal`;
+  const url=`https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${encodeURIComponent(key)}&regions=eu&markets=h2h,totals,spreads&oddsFormat=decimal`;
   try{
     const r=await fetch(url);
     if(!r.ok){ let detail=''; try{detail=(await r.json()).message||'';}catch(e){}
@@ -896,18 +921,30 @@ function extract(ev){
   const H=getO(ev.home_team),A=getO(ev.away_team),
         D=getO('Draw')??(h2h.outcomes.find(x=>x.name!==ev.home_team&&x.name!==ev.away_team)||{}).price;
   if(!H||!A||!D)return null;
+  // 大小球:取赔率最均衡的主线(对悬殊场更能反映真实总进球)
   let over=null,under=null,line=2.5;
   const tot=bk.markets.find(m=>m.key==='totals');
   if(tot){
-    // 取最接近 2.5 的盘口
-    const pts=[...new Set(tot.outcomes.map(o=>o.point))].filter(x=>x!=null);
-    if(pts.length){line=pts.reduce((a,b)=>Math.abs(b-2.5)<Math.abs(a-2.5)?b:a);
-      const ov=tot.outcomes.find(o=>o.name==='Over'&&o.point===line),
-            un=tot.outcomes.find(o=>o.name==='Under'&&o.point===line);
-      if(ov)over=ov.price; if(un)under=un.price;}
+    let bestDiff=1e9;
+    [...new Set(tot.outcomes.map(o=>o.point))].filter(x=>x!=null).forEach(pt=>{
+      const ov=tot.outcomes.find(o=>o.name==='Over'&&o.point===pt),
+            un=tot.outcomes.find(o=>o.name==='Under'&&o.point===pt);
+      if(ov&&un){ const d=Math.abs(ov.price-un.price); if(d<bestDiff){bestDiff=d;over=ov.price;under=un.price;line=pt;} }
+    });
+  }
+  // 让球:取最均衡的主盘口(主队让球点 + 主/客赔率)
+  let ahLine=null,ahHome=null,ahAway=null;
+  const sp=bk.markets.find(m=>m.key==='spreads');
+  if(sp){
+    let bestDiff=1e9;
+    sp.outcomes.filter(o=>o.name===ev.home_team).forEach(ho=>{
+      const ao=sp.outcomes.find(o=>o.name===ev.away_team&&Math.abs((+o.point||0)+(+ho.point||0))<1e-6);
+      if(ao){ const d=Math.abs(ho.price-ao.price); if(d<bestDiff){bestDiff=d;ahLine=ho.point;ahHome=ho.price;ahAway=ao.price;} }
+    });
   }
   return {H:H.toFixed(2),D:(+D).toFixed(2),A:A.toFixed(2),over:over?over.toFixed(2):null,
-          under:under?under.toFixed(2):null,line};
+          under:under?under.toFixed(2):null,line,
+          ahLine:(ahLine!=null?ahLine:null),ahHome:ahHome?ahHome.toFixed(2):null,ahAway:ahAway?ahAway.toFixed(2):null};
 }
 function loadInto(ev,od){
   document.getElementById('home').value=zh(ev.home_team);
@@ -920,6 +957,9 @@ function loadInto(ev,od){
     document.getElementById('oOver').value=od.over;
     document.getElementById('oUnder').value=od.under;
   }
+  const aL=document.getElementById('ahLine'),aH=document.getElementById('ahHome'),aA=document.getElementById('ahAway');
+  if(od.ahLine!=null&&od.ahHome&&od.ahAway){ aL.value=od.ahLine; aH.value=od.ahHome; aA.value=od.ahAway; }
+  else { aL.value=''; aH.value=''; aA.value=''; }
   run();
   document.getElementById('out').scrollIntoView({behavior:'smooth',block:'start'});
 }
