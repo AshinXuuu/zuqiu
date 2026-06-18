@@ -578,7 +578,7 @@
     <section class="card" id="out">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <h2 style="margin:0">比分概率</h2>
-        <a href="我的预测.html" class="navlink">我的预测 · 归档分析 ↗</a>
+        <span style="display:flex;gap:14px"><a href="世界杯复盘.html" class="navlink">赛程回溯 ↗</a><a href="我的预测.html" class="navlink">我的预测 ↗</a></span>
       </div>
       <!-- 比分概率 -->
       <div class="panel" id="panel-score">
@@ -887,6 +887,43 @@ function loadOddsCache(){
   }catch(e){}
 }
 
+/* 复盘归档:拉赔率时,把每场"未开赛"比赛的盘口+模型预测快照存档(锁首见,不覆盖) */
+const ARCHKEY='wc_archive_v1';
+function loadArch(){ try{return JSON.parse(localStorage.getItem(ARCHKEY))||{};}catch(e){return {};} }
+function saveArch(a){ try{localStorage.setItem(ARCHKEY,JSON.stringify(a));}catch(e){} }
+function predictFromOdds(od){
+  const oH=+od.H,oD=+od.D,oA=+od.A,oOver=+od.over,oUnder=+od.under,line=+od.line;
+  if(!(oH>1&&oD>1&&oA>1&&oOver>1&&oUnder>1)) return null;
+  const d1=devig([oH,oD,oA]), d2=devig([oOver,oUnder]);
+  const target={H:d1.p[0],D:d1.p[1],A:d1.p[2],Over:d2.p[0]};
+  if(od.ahLine!=null&&+od.ahHome>1&&+od.ahAway>1){ target.ah=devig([+od.ahHome,+od.ahAway]).p[0]; target.ahLine=+od.ahLine; }
+  const f=fit(target,line), M=scoreMatrix(f.lh,f.la,f.rho), im=implied(M,line);
+  const flat=[]; for(let i=0;i<=MAXG;i++)for(let j=0;j<=MAXG;j++)flat.push([i,j,M[i][j]]);
+  flat.sort((a,b)=>b[2]-a[2]);
+  return {pH:+im.H.toFixed(4),pD:+im.D.toFixed(4),pA:+im.A.toFixed(4),pOver:+im.Over.toFixed(4),
+          lh:+f.lh.toFixed(3),la:+f.la.toFixed(3),line:line,
+          top:flat.slice(0,6).map(t=>[t[0],t[1],+t[2].toFixed(4)])};
+}
+function archiveSnapshot(data){
+  const arch=loadArch(), now=Date.now(); let added=0;
+  (data||[]).forEach(ev=>{
+    const id=ev.id||(ev.home_team+ev.away_team+ev.commence_time);
+    if(arch[id]) return;                                   // 锁首见,不覆盖
+    if(!(new Date(ev.commence_time).getTime()>now)) return; // 只存未开赛
+    const od=extract(ev); if(!od) return;
+    const pred=predictFromOdds(od); if(!pred) return;
+    arch[id]={id,home:zh(ev.home_team),away:zh(ev.away_team),
+      homeEn:ev.home_team,awayEn:ev.away_team,commence:ev.commence_time,
+      league:ev.sport_title||'',snapTs:now,
+      odds:{H:od.H,D:od.D,A:od.A,line:od.line,over:od.over,under:od.under,
+            ahLine:od.ahLine,ahHome:od.ahHome,ahAway:od.ahAway},
+      pred:pred, actual:''};
+    added++;
+  });
+  if(added) saveArch(arch);
+  return added;
+}
+
 async function fetchOdds(){
   let key=document.getElementById('apiKey').value.trim();
   if(!key){ try{key=localStorage.getItem(KEYSTORE)||'';}catch(e){} }
@@ -904,9 +941,10 @@ async function fetchOdds(){
     const rem=r.headers.get('x-requests-remaining');
     try{ localStorage.setItem(ODDSCACHE,JSON.stringify({ts:Date.now(),data})); }catch(e){}
     buildOddsIndex(data);
+    const arch=archiveSnapshot(data);
     renderMatchList(data);
     if(window.renderFixtures) window.renderFixtures();
-    setFetchMsg(`已拉取 ${data.length} 场(已缓存,今日可重复查阅)。赛程里有赔率的场次现在标「看赔率›」可点击。`+(rem?`　剩余额度 ${rem}`:''),'ok');
+    setFetchMsg(`已拉取 ${data.length} 场(已缓存)。赛程里有赔率的场次标「看赔率›」可点;已归档 ${arch} 场未开赛比赛供复盘。`+(rem?`　剩余额度 ${rem}`:''),'ok');
   }catch(e){
     setFetchMsg('浏览器直连失败(网络或 CORS)。可手动输入赔率。','err');
   }
