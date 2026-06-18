@@ -80,7 +80,7 @@
 
   <div class="card">
     <h2>小组赛 · 全部对阵与结果(北京时间)</h2>
-    <p class="apimsg" id="boardNote" style="margin-top:0">结果格可直接编辑填写(如 2-1),自动保存。已归档比赛会显示模型 TOP3 与命中。</p>
+    <p class="apimsg" id="boardNote" style="margin-top:0">第一轮比分已按网络多源<b>预填(请核对,可直接改)</b>。结果格可编辑、自动保存。<b>模型 TOP3 只对"赛前已拉过赔率归档"的比赛显示</b>——第一轮当时没归档,故无预测;第二轮起开赛前在主页拉一次赔率即有。</p>
     <div id="board"></div>
   </div>
 </div>
@@ -92,6 +92,17 @@ const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN;
 function loadArch(){ try{return JSON.parse(localStorage.getItem(ARCHKEY))||{};}catch(e){return {};} }
 function loadRes(){ try{return JSON.parse(localStorage.getItem(RESKEY))||{};}catch(e){return {};} }
 function saveRes(r){ try{localStorage.setItem(RESKEY,JSON.stringify(r));}catch(e){} }
+// 第一轮真实比分(网络多源核对,可在表格里直接改)。键=排序后队名 -> {home(主队),hg,ag}
+const SEED1={};
+(function(){ function s(h,a,hg,ag){ SEED1[[h,a].sort().join('|')]={home:h,hg:hg,ag:ag}; }
+  s("墨西哥","南非",2,0); s("韩国","捷克",2,1); s("加拿大","波黑",1,1); s("美国","巴拉圭",4,1);
+  s("卡塔尔","瑞士",1,1); s("巴西","摩洛哥",1,1); s("海地","苏格兰",0,1); s("澳大利亚","土耳其",2,0);
+  s("德国","库拉索",7,1); s("荷兰","日本",2,2); s("科特迪瓦","厄瓜多尔",1,0); s("瑞典","突尼斯",5,1);
+  s("西班牙","佛得角",0,0); s("比利时","埃及",1,1); s("沙特阿拉伯","乌拉圭",1,1); s("伊朗","新西兰",2,2);
+  s("法国","塞内加尔",3,1); s("伊拉克","挪威",1,4); s("阿根廷","阿尔及利亚",3,0); s("奥地利","约旦",3,1);
+  s("葡萄牙","刚果(金)",1,1); s("英格兰","克罗地亚",4,2); s("加纳","巴拿马",1,0); s("乌兹别克斯坦","哥伦比亚",1,3);
+})();
+(function seedOnce(){ const rs=loadRes(); let ch=false; for(const k in SEED1){ if(!rs[k]){ rs[k]=SEED1[k]; ch=true; } } if(ch) saveRes(rs); })();
 const COUNTRY_ZH={"England":"英格兰","France":"法国","Germany":"德国","Spain":"西班牙","Portugal":"葡萄牙","Netherlands":"荷兰","Belgium":"比利时","Croatia":"克罗地亚","Switzerland":"瑞士","Sweden":"瑞典","Austria":"奥地利","Scotland":"苏格兰","Norway":"挪威","Czech Republic":"捷克","Czechia":"捷克","Turkey":"土耳其","Türkiye":"土耳其","Bosnia and Herzegovina":"波黑","Brazil":"巴西","Argentina":"阿根廷","Uruguay":"乌拉圭","Colombia":"哥伦比亚","Ecuador":"厄瓜多尔","Paraguay":"巴拉圭","United States":"美国","USA":"美国","Mexico":"墨西哥","Canada":"加拿大","Panama":"巴拿马","Haiti":"海地","Curacao":"库拉索","Curaçao":"库拉索","Morocco":"摩洛哥","Senegal":"塞内加尔","Egypt":"埃及","Ghana":"加纳","Algeria":"阿尔及利亚","Tunisia":"突尼斯","Ivory Coast":"科特迪瓦","South Africa":"南非","DR Congo":"刚果(金)","Congo DR":"刚果(金)","Cape Verde":"佛得角","Cabo Verde":"佛得角","Japan":"日本","South Korea":"韩国","Korea Republic":"韩国","Iran":"伊朗","Australia":"澳大利亚","Saudi Arabia":"沙特阿拉伯","Qatar":"卡塔尔","Iraq":"伊拉克","Uzbekistan":"乌兹别克斯坦","Jordan":"约旦","New Zealand":"新西兰"};
 const zh=n=>!n?n:(COUNTRY_ZH[(''+n).trim()]||(''+n).trim());
 try{ const k=localStorage.getItem(KEYSTORE); if(k)document.getElementById('apiKey').value=k; }catch(e){}
