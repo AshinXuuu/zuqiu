@@ -259,8 +259,8 @@
     <p class="sub">输入一场比赛的<b>胜平负</b>与<b>大小球</b>赔率,工具会去掉水位、还原出市场公允概率,并展开成完整的比分概率分布。<b>这是在解码市场,不是打败市场</b> —— 它复述的是赔率里已有的信息。</p>
   </header>
 
-  <!-- ===================== 世界杯赛程 ===================== -->
-  <div class="sched2" id="schedule">
+  <!-- ===================== 世界杯赛程 + 回溯 ===================== -->
+  <div id="schedule">
     <style>
       #schedule h2{margin-bottom:14px}
       .sc-note{font-size:12.5px;color:var(--ink-soft);background:var(--accent-soft);
@@ -339,19 +339,30 @@
       .sc-match.click{cursor:pointer}
       .sc-match.click:hover{background:var(--accent-soft)}
       .sc-match .odtag{font-size:10.5px;color:var(--accent);font-weight:600;white-space:nowrap}
+      /* 合并赛程+回溯的逐场行:左=时间/对阵,右=赛果/TOP3 */
+      .mrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px}
+      .mrow:last-child{border-bottom:none}
+      .mrow.click{cursor:pointer}
+      .mrow.click:hover{background:var(--accent-soft)}
+      .mrow .ml{display:flex;align-items:baseline;gap:10px;min-width:0}
+      .mrow .ml .mt{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;width:46px;flex:none}
+      .mrow .ml .mu{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .mrow .mr{display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+      .mrow .mres{font-weight:700;font-variant-numeric:tabular-nums}
+      .mrow .mtop{font-size:11.5px;color:var(--ink-faint)}
+      .mrow .odtag2{font-size:10.5px;color:var(--accent);font-weight:600;white-space:nowrap}
+      .mhit{color:var(--accent);font-weight:700}.mmiss{color:var(--warn)}.mmut{color:var(--ink-faint)}
+      .dayhd{font-weight:600;font-size:12.5px;color:var(--accent);margin:12px 0 2px;padding:0 2px}
+      @media(max-width:600px){.mrow{grid-template-columns:1fr;gap:4px}.mrow .mr{justify-content:flex-start}}
     </style>
 
-    <section class="card schedcard">
-      <h2>分组情况</h2>
-      <div class="sched-scroll" id="groupsScroll"></div>
-    </section>
-    <section class="card schedcard">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
-        <h2 style="margin:0">世界杯赛程 · 北京时间</h2>
-        <button class="addbtn" onclick="scheduleFetch()">拉取赔率</button>
+    <section class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;flex-wrap:wrap">
+        <h2 style="margin:0">世界杯赛程 · 北京时间 · 赛果 / 预测</h2>
+        <button class="addbtn" onclick="scheduleFetch()">拉取赔率 + 回填赛果</button>
       </div>
-      <div class="apimsg" id="fixMsg" style="margin:0 0 8px"></div>
-      <div class="sched-scroll" id="fixScroll"></div>
+      <p class="apimsg" id="fixMsg" style="margin:0 0 8px">左半=时间与对阵;右半=实际赛果 + 模型 TOP3 预测。点「拉取赔率」会同时拉赔率(用于预测、可点看概率)并回填近 3 天赛果。</p>
+      <div class="sched-scroll" id="fixScroll" style="height:auto;max-height:600px"></div>
     </section>
   </div>
 
@@ -476,40 +487,43 @@
     }
     function dnum(d){ const a=d.split('/').map(Number); return 2026*10000+a[0]*100+a[1]; }
 
-    // 分组卡
-    (function(){
-      let g='<div class="sc-groups">';
-      for(const k in GROUPS){ g+='<div class="sc-grp"><h4>'+k+' 组</h4><ul>';
-        GROUPS[k].forEach((t,i)=>g+='<li>'+t+'<span>'+k+(i+1)+'</span></li>'); g+='</ul></div>'; }
-      document.getElementById('groupsScroll').innerHTML=g+'</div>';
-    })();
-
-    // 赛程卡(逐场 + 已结束自动折叠;有赔率的场次可点击看概率)
-    function dayBlock(d,wk,ms,tn){
-      const past=dnum(d)<tn;
-      let h='<div class="sc-day'+(past?' fold':'')+'"><div class="sc-dhead" onclick="this.parentNode.classList.toggle(\'fold\')">'
-        +'<span>北京 '+d+' · '+wk+' · '+ms.length+' 场'+(past?'<span class="sc-done">已结束</span>':'')+'</span>'
-        +'<span class="dchev">▾</span></div><div class="sc-dbody">';
-      ms.forEach(m=>{
-        const p=m[1].split(' vs '), key=[p[0],p[1]].sort().join('|');
-        const has=window.ODDS_INDEX&&window.ODDS_INDEX[key];
-        h+='<div class="sc-match'+(has?' click':'')+'"'+(has?' onclick="loadFix(\''+key+'\')"':'')
-          +'><span class="t">'+m[0]+'</span><span class="vs">'+m[1]+'</span>'
-          +'<span class="gp">'+m[2]+'组</span>'+(has?'<span class="odtag">看赔率›</span>':'')+'</div>';
-      });
-      return h+'</div></div>';
+    // 合并赛程+回溯:逐场行,左=时间/对阵,右=实际赛果 + 模型TOP3。有赔率的场次可点看概率。
+    function rowHTML(time, mu){
+      const p=mu.split(' vs '), home=p[0], away=p[1];
+      const k=[home,away].sort().join('|');
+      const has=window.ODDS_INDEX&&window.ODDS_INDEX[k];
+      const res=(typeof getRes==='function')?getRes(home,away):null;
+      const pred=(typeof predFor==='function')?predFor(home,away):null;
+      const resTxt = res? ('<span class="mres">'+res[0]+'-'+res[1]+'</span>') : '<span class="mres mmut">—</span>';
+      let topTxt='<span class="mtop mmut">无预测</span>', mark='';
+      if(pred){ const top3=(pred.top||[]).slice(0,3).map(t=>t[0]+'-'+t[1]).join(' / ');
+        topTxt='<span class="mtop">模型 '+top3+'</span>';
+        if(res && typeof metricsFor==='function'){ const m=metricsFor(pred,res);
+          if(m) mark=' '+(m.top1?'<span class="mhit">T1✓</span>':(m.top3?'<span class="mhit">T3✓</span>':'<span class="mmiss">✗</span>'))
+                     +(m.sHit?'<span class="mhit">·胜负✓</span>':'<span class="mmiss">·胜负✗</span>'); }
+      }
+      return '<div class="mrow'+(has?' click':'')+'"'+(has?' onclick="loadFix(\''+k+'\')"':'')+'>'
+        +'<div class="ml"><span class="mt">'+time+'</span><span class="mu">'+mu+(has?' <span class="odtag2">看赔率›</span>':'')+'</span></div>'
+        +'<div class="mr">'+resTxt+topTxt+mark+'</div></div>';
     }
-    // 暴露给主脚本调用(此时 loadFix/ODDS_INDEX 已就绪)
+    function fixSection(title, FIX, first){
+      const tn=todayNum();
+      let h='<div class="blocktitle scb" style="margin-top:'+(first?'0':'16px')+'">'+title+'</div>';
+      for(const d in FIX){
+        const past=dnum(d)<tn;                 // 该日早于"今天(北京)"=已结束→折叠
+        let rows=''; FIX[d][1].forEach(m=> rows+=rowHTML(m[0],m[1]));
+        h+='<div class="sc-day'+(past?' fold':'')+'">'
+          +'<div class="sc-dhead" onclick="this.parentNode.classList.toggle(\'fold\')">'
+          +'<span>北京 '+d+' · '+FIX[d][0]+(past?'<span class="sc-done">已结束</span>':'')+'</span>'
+          +'<span class="dchev">▾</span></div><div class="sc-dbody">'+rows+'</div></div>';
+      }
+      return h;
+    }
     window.renderFixtures=function(){
-      const tn=todayNum(); let h='';
-      h+='<div class="blocktitle scb">第 1 轮</div>';
-      for(const d in FIX1) h+=dayBlock(d,FIX1[d][0],FIX1[d][1],tn);
-      h+='<div class="blocktitle scb" style="margin-top:14px">第 2 轮</div>';
-      for(const d in FIX2) h+=dayBlock(d,FIX2[d][0],FIX2[d][1],tn);
-      h+='<div class="blocktitle scb" style="margin-top:14px">第 3 轮(每组同时开球)</div><div class="sc-chips">';
+      let h=fixSection('第 1 轮',FIX1,true)+fixSection('第 2 轮',FIX2,false);
+      h+='<div class="blocktitle scb" style="margin-top:16px">第 3 轮(每组同时开球)</div><div class="sc-chips">';
       MD[3].forEach(r=> h+='<div class="sc-chip"><div class="d">'+r[0]+'<small>当地'+r[1]+'</small></div><div class="g">'+r[2]+'</div></div>');
-      h+='</div>';
-      h+='<div class="blocktitle scb" style="margin-top:14px">淘汰赛(对阵待小组赛后揭晓)</div>';
+      h+='</div><div class="blocktitle scb" style="margin-top:16px">淘汰赛(对阵待小组赛后揭晓)</div>';
       ["32强","16强","8强","4强","决赛"].forEach(s=>{ const k=KO[s];
         h+='<div class="sc-ko-mini"><span class="kn">'+s+' <span class="sc-tag">'+k.n+'</span></span><span class="kd">'+k.d+'</span></div>'; });
       document.getElementById('fixScroll').innerHTML=h;
@@ -556,7 +570,7 @@
     <!-- 串关计算器(腿来自「最可能的比分」的 ＋串) -->
     <section class="card" id="calc">
       <h2>串关计算器(复式)</h2>
-      <p class="calchint">在右侧「最可能的比分」点 <b>＋串</b> 加入。<b>每场可选多个比分</b>,最多 5 场;每场<b>命中其一</b>即算该场中。再选「单场」或「串关」加入「我的预测」。</p>
+      <p class="calchint">在右侧「最可能的比分」点 <b>＋串</b> 加入。<b>每场可选多个比分</b>,最多 5 场;每场<b>命中其一</b>即算该场中。下方实时算复式注数、理论中奖率、组合公允赔率。</p>
       <div id="calcBody"></div>
       <div id="calcSum" style="display:none">
         <div class="calc-stats">
@@ -565,8 +579,6 @@
           <div class="cstat"><span class="k">组合公允赔率</span><span class="v" id="cOdds">–</span></div>
         </div>
         <div class="calc-actions">
-          <button class="go" style="margin-top:0" onclick="addCalc('parlay')">串关加入「我的预测」</button>
-          <button class="mini" onclick="addCalc('single')">拆成单场加入</button>
           <button class="mini" onclick="clearCalc()">清空</button>
         </div>
         <p class="calchint" style="margin-top:10px">组合赔率为<b>公允</b>值(各腿 1/概率 相乘);真实庄家比分串关赔率会更短(水位高)。串得越多中奖率越低、方差越大。</p>
@@ -576,10 +588,6 @@
 
     <!-- 输出 -->
     <section class="card" id="out">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <h2 style="margin:0">比分概率</h2>
-        <span style="display:flex;gap:14px"><a href="世界杯复盘.html" class="navlink">赛程回溯 ↗</a><a href="我的预测.html" class="navlink">我的预测 ↗</a></span>
-      </div>
       <!-- 比分概率 -->
       <div class="panel" id="panel-score">
         <h2 id="outTitle" style="margin-top:4px">市场公允概率</h2>
@@ -604,20 +612,9 @@
     </section>
   </div>
 
-  <!-- API:页面底部,折叠 -->
-  <details class="api">
-    <summary>接入 The Odds API 自动拉取世界杯赔率（可选）<span class="chev">▶</span></summary>
-    <div class="api-body">
-      <p class="apimsg" style="color:var(--ink-soft)">在 <a href="https://the-odds-api.com" target="_blank">the-odds-api.com</a> 注册可拿免费 key(每月有限额)。key 只存在你本机浏览器,不会上传。拉取后点任意一场,赔率会自动灌入上方并直接出结果。</p>
-      <div class="row2">
-        <div class="field"><label>API Key</label><input type="text" id="apiKey" placeholder="粘贴你的 key"></div>
-        <div class="field"><label>赛事 key</label><input type="text" id="sportKey" value="soccer_fifa_world_cup"></div>
-      </div>
-      <button class="go" style="background:#444" onclick="fetchOdds()">拉取比赛列表</button>
-      <div class="apimsg" id="apiMsg"></div>
-      <div class="api-list" id="apiList"></div>
-    </div>
-  </details>
+  <!-- API key 隐藏存储(通过赛程卡「拉取赔率」按钮触发,无 key 时弹框配置) -->
+  <input type="hidden" id="apiKey">
+  <input type="hidden" id="sportKey" value="soccer_fifa_world_cup">
 
   <footer>
     <b>诚实声明.</b> 本工具默认定位为分析/研究工具。它把赔率解码成概率分布 —— 输出与去水位后的市场观点一致,本身<b>不产生 edge</b>。即便比分表完美,单场「最可能比分」的命中率上限也只有约 <b>10–14%</b>,这是足球的内在方差决定的,换任何模型都一样。要超越市场,必须加入赔率里没有的独立信息(伤停、轮换、动机),并用 CLV、概率校准等手段诚实验证。任何真实投注都涉及资金风险。
@@ -864,7 +861,7 @@ function saveKeyAndFetch(){
   closeKeyModal(); fetchOdds();
 }
 function renderMatchList(data){
-  const list=document.getElementById('apiList'); list.innerHTML='';
+  const list=document.getElementById('apiList'); if(!list)return; list.innerHTML='';
   data.slice(0,60).forEach(ev=>{
     const od=extract(ev); if(!od)return;
     const b=document.createElement('button'); b.className='matchbtn';
@@ -880,10 +877,6 @@ function loadOddsCache(){
     if(!c||!c.data||!c.data.length||Date.now()-c.ts>24*3600*1000) return;
     buildOddsIndex(c.data);
     renderMatchList(c.data);
-    const t=new Date(c.ts).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-    const msg=document.getElementById('apiMsg');
-    msg.className='apimsg'; msg.textContent=`已显示缓存的比赛列表(${t} 拉取 · ${c.data.length} 场)。直接点任意一场灌入赔率;需要更新赔率再点上方「拉取」。`;
-    const det=document.querySelector('details.api'); if(det) det.open=true;
   }catch(e){}
 }
 
@@ -924,6 +917,51 @@ function archiveSnapshot(data){
   return added;
 }
 
+/* ---------- 赛果回溯后端:R1 种子 + 本机结果 + /scores 回填 + 取预测/命中 ---------- */
+const RESKEY='wc_results_v1';
+function loadRes(){ try{return JSON.parse(localStorage.getItem(RESKEY))||{};}catch(e){return {};} }
+function saveRes(r){ try{localStorage.setItem(RESKEY,JSON.stringify(r));}catch(e){} }
+function rkey(h,a){ return [h,a].sort().join('|'); }
+function getRes(home,away){ const r=loadRes()[rkey(home,away)]; if(!r)return null; return (r.home===home)?[r.hg,r.ag]:[r.ag,r.hg]; }
+const SEED1={};
+(function(){ function s(h,a,hg,ag){ SEED1[[h,a].sort().join('|')]={home:h,hg:hg,ag:ag}; }
+  s("墨西哥","南非",2,0); s("韩国","捷克",2,1); s("加拿大","波黑",1,1); s("美国","巴拉圭",4,1);
+  s("卡塔尔","瑞士",1,1); s("巴西","摩洛哥",1,1); s("海地","苏格兰",0,1); s("澳大利亚","土耳其",2,0);
+  s("德国","库拉索",7,1); s("荷兰","日本",2,2); s("科特迪瓦","厄瓜多尔",1,0); s("瑞典","突尼斯",5,1);
+  s("西班牙","佛得角",0,0); s("比利时","埃及",1,1); s("沙特阿拉伯","乌拉圭",1,1); s("伊朗","新西兰",2,2);
+  s("法国","塞内加尔",3,1); s("伊拉克","挪威",1,4); s("阿根廷","阿尔及利亚",3,0); s("奥地利","约旦",3,1);
+  s("葡萄牙","刚果(金)",1,1); s("英格兰","克罗地亚",4,2); s("加纳","巴拿马",1,0); s("乌兹别克斯坦","哥伦比亚",1,3);
+})();
+(function(){ const rs=loadRes(); let ch=false; for(const k in SEED1){ if(!rs[k]){rs[k]=SEED1[k];ch=true;} } if(ch)saveRes(rs); })();
+function archByKey(){ const a=loadArch(),m={}; Object.values(a).forEach(e=>{m[rkey(e.home,e.away)]=e;}); return m; }
+function predFor(home,away){ const e=archByKey()[rkey(home,away)]; return e?e.pred:null; }
+const _sideOf=a=>a[0]>a[1]?'H':(a[0]<a[1]?'A':'D');
+function _modelSide(p){const m={H:p.pH,D:p.pD,A:p.pA};return Object.keys(m).reduce((x,y)=>m[y]>m[x]?y:x,'H');}
+function metricsFor(pred,res){ if(!res||!pred)return null; const top=pred.top||[];
+  return {top1:!!(top[0]&&top[0][0]===res[0]&&top[0][1]===res[1]),
+    top3:top.slice(0,3).some(t=>t[0]===res[0]&&t[1]===res[1]),
+    sHit:_modelSide(pred)===_sideOf(res),impT:pred.lh+pred.la,actT:res[0]+res[1],impS:pred.lh-pred.la}; }
+async function syncScores(){
+  let key=''; try{key=localStorage.getItem(KEYSTORE)||'';}catch(e){}
+  const fld=document.getElementById('apiKey'); if(!key&&fld)key=fld.value.trim();
+  const sport=(document.getElementById('sportKey')&&document.getElementById('sportKey').value.trim())||'soccer_fifa_world_cup';
+  if(!key) return 0;
+  try{
+    const r=await fetch(`https://api.the-odds-api.com/v4/sports/${sport}/scores/?daysFrom=3&apiKey=${encodeURIComponent(key)}`);
+    if(!r.ok) return 0;
+    const data=await r.json();
+    const done=data.filter(e=>e.completed&&Array.isArray(e.scores)&&e.scores.length>=2);
+    const rs=loadRes(); let filled=0;
+    done.forEach(ev=>{ const sm={}; ev.scores.forEach(s=>sm[s.name]=Number(s.score));
+      if((ev.home_team in sm)&&(ev.away_team in sm)){
+        rs[rkey(zh(ev.home_team),zh(ev.away_team))]={home:zh(ev.home_team),hg:sm[ev.home_team],ag:sm[ev.away_team]}; filled++; } });
+    if(filled) saveRes(rs);
+    try{ localStorage.setItem('wc_arch_lastsync',Date.now()+''); }catch(e){}
+    if(window.renderFixtures) window.renderFixtures();
+    return filled;
+  }catch(e){ return 0; }
+}
+
 async function fetchOdds(){
   let key=document.getElementById('apiKey').value.trim();
   if(!key){ try{key=localStorage.getItem(KEYSTORE)||'';}catch(e){} }
@@ -944,7 +982,8 @@ async function fetchOdds(){
     const arch=archiveSnapshot(data);
     renderMatchList(data);
     if(window.renderFixtures) window.renderFixtures();
-    setFetchMsg(`已拉取 ${data.length} 场(已缓存)。赛程里有赔率的场次标「看赔率›」可点;已归档 ${arch} 场未开赛比赛供复盘。`+(rem?`　剩余额度 ${rem}`:''),'ok');
+    syncScores().then(n=>{ if(n) setFetchMsg(`已拉取 ${data.length} 场、归档 ${arch} 场,并回填 ${n} 场赛果。`+(rem?`　剩余额度 ${rem}`:''),'ok'); });
+    setFetchMsg(`已拉取 ${data.length} 场(已缓存)。有赔率的场次标「看赔率›」可点;已归档 ${arch} 场未开赛比赛供复盘;正在回填赛果…`+(rem?`　剩余额度 ${rem}`:''),'ok');
   }catch(e){
     setFetchMsg('浏览器直连失败(网络或 CORS)。可手动输入赔率。','err');
   }
@@ -1072,8 +1111,13 @@ function addCalc(mode){
 }
 
 renderCalc();    // 串关计算器初始态(含本机暂存的腿)
-loadOddsCache(); // 读今日缓存→建赔率索引→底部列表
-if(window.renderFixtures) window.renderFixtures();  // 渲染赛程(有赔率的场次可点击)
+loadOddsCache(); // 读今日缓存→建赔率索引
+if(window.renderFixtures) window.renderFixtures();  // 渲染合并赛程板(赛果+预测)
+(function(){ // 打开即自动回填赛果(有 key 且距上次>30分钟,省额度)
+  let key=''; try{key=localStorage.getItem(KEYSTORE)||'';}catch(e){}
+  let last=0; try{last=+(localStorage.getItem('wc_arch_lastsync')||0);}catch(e){}
+  if(key && Date.now()-last>30*60*1000) syncScores();
+})();
 run();           // 首屏用默认赔率渲染一次
 </script>
 </body>
