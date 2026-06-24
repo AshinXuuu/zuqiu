@@ -423,6 +423,13 @@
       "6/23":["周二",[["01:00","阿根廷 vs 奥地利","J"],["05:00","法国 vs 伊拉克","I"],["08:00","挪威 vs 塞内加尔","I"],["11:00","约旦 vs 阿尔及利亚","J"]]],
       "6/24":["周三",[["01:00","葡萄牙 vs 乌兹别克斯坦","K"],["04:00","英格兰 vs 加纳","L"],["07:00","巴拿马 vs 克罗地亚","L"],["10:00","哥伦比亚 vs 刚果(金)","K"]]]
     };
+    // 第3轮(同组两场同时开球)。配对 4v1 / 2v3,北京时间(ET+12)
+    const FIX3 = {
+      "6/25":["周四",[["03:00","瑞士 vs 加拿大","B"],["03:00","波黑 vs 卡塔尔","B"],["06:00","苏格兰 vs 巴西","C"],["06:00","摩洛哥 vs 海地","C"],["09:00","捷克 vs 墨西哥","A"],["09:00","南非 vs 韩国","A"]]],
+      "6/26":["周五",[["04:00","厄瓜多尔 vs 德国","E"],["04:00","库拉索 vs 科特迪瓦","E"],["07:00","日本 vs 瑞典","F"],["07:00","突尼斯 vs 荷兰","F"],["10:00","土耳其 vs 美国","D"],["10:00","巴拉圭 vs 澳大利亚","D"]]],
+      "6/27":["周六",[["03:00","挪威 vs 法国","I"],["03:00","塞内加尔 vs 伊拉克","I"],["08:00","佛得角 vs 沙特阿拉伯","H"],["08:00","乌拉圭 vs 西班牙","H"],["11:00","埃及 vs 伊朗","G"],["11:00","新西兰 vs 比利时","G"]]],
+      "6/28":["周日",[["05:00","巴拿马 vs 英格兰","L"],["05:00","克罗地亚 vs 加纳","L"],["07:30","哥伦比亚 vs 葡萄牙","K"],["07:30","刚果(金) vs 乌兹别克斯坦","K"],["10:00","阿尔及利亚 vs 奥地利","J"],["10:00","约旦 vs 阿根廷","J"]]]
+    };
     function fixHTML(title, FIX){
       let h='<div class="blocktitle scb">'+title+'</div>';
       for(const d in FIX){
@@ -520,10 +527,9 @@
       return h;
     }
     window.renderFixtures=function(){
-      let h=fixSection('第 1 轮',FIX1,true)+fixSection('第 2 轮',FIX2,false);
-      h+='<div class="blocktitle scb" style="margin-top:16px">第 3 轮(每组同时开球)</div><div class="sc-chips">';
-      MD[3].forEach(r=> h+='<div class="sc-chip"><div class="d">'+r[0]+'<small>当地'+r[1]+'</small></div><div class="g">'+r[2]+'</div></div>');
-      h+='</div><div class="blocktitle scb" style="margin-top:16px">淘汰赛(对阵待小组赛后揭晓)</div>';
+      let h=fixSection('第 1 轮',FIX1,true)+fixSection('第 2 轮',FIX2,false)
+            +fixSection('第 3 轮(每组两场同时开球)',FIX3,false);
+      h+='<div class="blocktitle scb" style="margin-top:16px">淘汰赛(对阵待小组赛后揭晓)</div>';
       ["32强","16强","8强","4强","决赛"].forEach(s=>{ const k=KO[s];
         h+='<div class="sc-ko-mini"><span class="kn">'+s+' <span class="sc-tag">'+k.n+'</span></span><span class="kd">'+k.d+'</span></div>'; });
       document.getElementById('fixScroll').innerHTML=h;
