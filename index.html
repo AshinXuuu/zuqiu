@@ -430,6 +430,15 @@
       "6/27":["周六",[["03:00","挪威 vs 法国","I"],["03:00","塞内加尔 vs 伊拉克","I"],["08:00","佛得角 vs 沙特阿拉伯","H"],["08:00","乌拉圭 vs 西班牙","H"],["11:00","埃及 vs 伊朗","G"],["11:00","新西兰 vs 比利时","G"]]],
       "6/28":["周日",[["05:00","巴拿马 vs 英格兰","L"],["05:00","克罗地亚 vs 加纳","L"],["07:30","哥伦比亚 vs 葡萄牙","K"],["07:30","刚果(金) vs 乌兹别克斯坦","K"],["10:00","阿尔及利亚 vs 奥地利","J"],["10:00","约旦 vs 阿根廷","J"]]]
     };
+    // 32 强淘汰赛(对阵已产生),北京时间(ET+12)
+    const FIXR32 = {
+      "6/29":["周一",[["03:00","南非 vs 加拿大"]]],
+      "6/30":["周二",[["01:00","巴西 vs 日本"],["04:30","德国 vs 巴拉圭"],["09:00","荷兰 vs 摩洛哥"]]],
+      "7/1":["周三",[["01:00","科特迪瓦 vs 挪威"],["05:00","法国 vs 瑞典"],["09:00","墨西哥 vs 厄瓜多尔"]]],
+      "7/2":["周四",[["00:00","英格兰 vs 刚果(金)"],["04:00","比利时 vs 塞内加尔"],["08:00","美国 vs 波黑"]]],
+      "7/3":["周五",[["03:00","西班牙 vs 奥地利"],["07:00","葡萄牙 vs 克罗地亚"],["11:00","瑞士 vs 阿尔及利亚"]]],
+      "7/4":["周六",[["02:00","澳大利亚 vs 埃及"],["06:00","阿根廷 vs 佛得角"],["09:30","哥伦比亚 vs 加纳"]]]
+    };
     function fixHTML(title, FIX){
       let h='<div class="blocktitle scb">'+title+'</div>';
       for(const d in FIX){
@@ -513,11 +522,11 @@
         +'<div class="ml"><span class="mt">'+time+'</span><span class="mu">'+mu+(has?' <span class="odtag2">看赔率›</span>':'')+'</span></div>'
         +'<div class="mr">'+resTxt+topTxt+mark+'</div></div>';
     }
-    function fixSection(title, FIX, first){
+    function fixSection(title, FIX, first, forceFold){
       const tn=todayNum();
       let h='<div class="blocktitle scb" style="margin-top:'+(first?'0':'16px')+'">'+title+'</div>';
       for(const d in FIX){
-        const past=dnum(d)<tn;                 // 该日早于"今天(北京)"=已结束→折叠
+        const past=forceFold||dnum(d)<tn;       // 强制折叠 或 该日已过 → 折叠
         let rows=''; FIX[d][1].forEach(m=> rows+=rowHTML(m[0],m[1]));
         h+='<div class="sc-day'+(past?' fold':'')+'">'
           +'<div class="sc-dhead" onclick="this.parentNode.classList.toggle(\'fold\')">'
@@ -527,10 +536,11 @@
       return h;
     }
     window.renderFixtures=function(){
-      let h=fixSection('第 1 轮',FIX1,true)+fixSection('第 2 轮',FIX2,false)
-            +fixSection('第 3 轮(每组两场同时开球)',FIX3,false);
-      h+='<div class="blocktitle scb" style="margin-top:16px">淘汰赛(对阵待小组赛后揭晓)</div>';
-      ["32强","16强","8强","4强","决赛"].forEach(s=>{ const k=KO[s];
+      let h=fixSection('小组赛 第 1 轮',FIX1,true,true)+fixSection('小组赛 第 2 轮',FIX2,false,true)
+            +fixSection('小组赛 第 3 轮',FIX3,false,true)
+            +fixSection('32 强淘汰赛',FIXR32,false,false);
+      h+='<div class="blocktitle scb" style="margin-top:16px">后续淘汰赛(对阵待定)</div>';
+      ["16强","8强","4强","决赛"].forEach(s=>{ const k=KO[s];
         h+='<div class="sc-ko-mini"><span class="kn">'+s+' <span class="sc-tag">'+k.n+'</span></span><span class="kd">'+k.d+'</span></div>'; });
       document.getElementById('fixScroll').innerHTML=h;
     };
