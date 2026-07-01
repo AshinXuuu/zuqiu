@@ -513,9 +513,11 @@
       const pred=(typeof predFor==='function')?predFor(home,away):null;
       const resTxt = res? ('<span class="mres">'+res[0]+'-'+res[1]+'</span>') : '<span class="mres mmut">—</span>';
       const ouTxt = res? ('<span class="mou">'+((res[0]+res[1])>=3?'大':'小')+'2.5</span>') : '';
-      let topTxt='<span class="mtop mmut">无预测</span>', mark='';
+      let topTxt='<span class="mtop mmut">无预测</span>', mark='', ouPred='';
       if(pred){ const top3=(pred.top||[]).slice(0,3).map(t=>t[0]+'-'+t[1]).join(' / ');
         topTxt='<span class="mtop">模型 '+top3+'</span>';
+        const lam=pred.lh+pred.la, pOver=1-Math.exp(-lam)*(1+lam+lam*lam/2);
+        if(!res) ouPred='<span class="mou">预'+(pOver>0.5?'大':'小')+'2.5 '+(pOver*100).toFixed(0)+'%</span>';
         if(res && typeof metricsFor==='function'){ const m=metricsFor(pred,res);
           if(m) mark=' '+(m.top1?'<span class="mhit">T1✓</span>':(m.top3?'<span class="mhit">T3✓</span>':'<span class="mmiss">✗</span>'))
                      +(m.sHit?'<span class="mhit">·胜负✓</span>':'<span class="mmiss">·胜负✗</span>')
@@ -523,7 +525,7 @@
       }
       return '<div class="mrow'+(has?' click':'')+'"'+(has?' onclick="loadFix(\''+k+'\')"':'')+'>'
         +'<div class="ml"><span class="mt">'+time+'</span><span class="mu">'+mu+(has?' <span class="odtag2">看赔率›</span>':'')+'</span></div>'
-        +'<div class="mr">'+resTxt+ouTxt+topTxt+mark+'</div></div>';
+        +'<div class="mr">'+resTxt+ouTxt+topTxt+ouPred+mark+'</div></div>';
     }
     function fixSection(title, FIX, first, forceFold){
       const tn=todayNum();
