@@ -350,6 +350,7 @@
       .mrow .mr{display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:wrap}
       .mrow .mres{font-weight:700;font-variant-numeric:tabular-nums}
       .mrow .mtop{font-size:11.5px;color:var(--ink-faint)}
+      .mrow .mou{font-size:10.5px;color:var(--ink-soft);background:#f3f3f1;border-radius:5px;padding:1px 5px;white-space:nowrap}
       .mrow .odtag2{font-size:10.5px;color:var(--accent);font-weight:600;white-space:nowrap}
       .mhit{color:var(--accent);font-weight:700}.mmiss{color:var(--warn)}.mmut{color:var(--ink-faint)}
       .dayhd{font-weight:600;font-size:12.5px;color:var(--accent);margin:12px 0 2px;padding:0 2px}
@@ -511,16 +512,18 @@
       const res=(typeof getRes==='function')?getRes(home,away):null;
       const pred=(typeof predFor==='function')?predFor(home,away):null;
       const resTxt = res? ('<span class="mres">'+res[0]+'-'+res[1]+'</span>') : '<span class="mres mmut">—</span>';
+      const ouTxt = res? ('<span class="mou">'+((res[0]+res[1])>=3?'大':'小')+'2.5</span>') : '';
       let topTxt='<span class="mtop mmut">无预测</span>', mark='';
       if(pred){ const top3=(pred.top||[]).slice(0,3).map(t=>t[0]+'-'+t[1]).join(' / ');
         topTxt='<span class="mtop">模型 '+top3+'</span>';
         if(res && typeof metricsFor==='function'){ const m=metricsFor(pred,res);
           if(m) mark=' '+(m.top1?'<span class="mhit">T1✓</span>':(m.top3?'<span class="mhit">T3✓</span>':'<span class="mmiss">✗</span>'))
-                     +(m.sHit?'<span class="mhit">·胜负✓</span>':'<span class="mmiss">·胜负✗</span>'); }
+                     +(m.sHit?'<span class="mhit">·胜负✓</span>':'<span class="mmiss">·胜负✗</span>')
+                     +(m.ouHit?'<span class="mhit">·大小✓</span>':'<span class="mmiss">·大小✗</span>'); }
       }
       return '<div class="mrow'+(has?' click':'')+'"'+(has?' onclick="loadFix(\''+k+'\')"':'')+'>'
         +'<div class="ml"><span class="mt">'+time+'</span><span class="mu">'+mu+(has?' <span class="odtag2">看赔率›</span>':'')+'</span></div>'
-        +'<div class="mr">'+resTxt+topTxt+mark+'</div></div>';
+        +'<div class="mr">'+resTxt+ouTxt+topTxt+mark+'</div></div>';
     }
     function fixSection(title, FIX, first, forceFold){
       const tn=todayNum();
@@ -954,9 +957,13 @@ function predFor(home,away){ const e=archByKey()[rkey(home,away)]; return e?e.pr
 const _sideOf=a=>a[0]>a[1]?'H':(a[0]<a[1]?'A':'D');
 function _modelSide(p){const m={H:p.pH,D:p.pD,A:p.pA};return Object.keys(m).reduce((x,y)=>m[y]>m[x]?y:x,'H');}
 function metricsFor(pred,res){ if(!res||!pred)return null; const top=pred.top||[];
+  const lam=pred.lh+pred.la, pOver25=1-Math.exp(-lam)*(1+lam+lam*lam/2); // 模型 P(总进球>2.5)
+  const actOver=(res[0]+res[1])>=3, modelOver=pOver25>0.5;
   return {top1:!!(top[0]&&top[0][0]===res[0]&&top[0][1]===res[1]),
     top3:top.slice(0,3).some(t=>t[0]===res[0]&&t[1]===res[1]),
-    sHit:_modelSide(pred)===_sideOf(res),impT:pred.lh+pred.la,actT:res[0]+res[1],impS:pred.lh-pred.la}; }
+    sHit:_modelSide(pred)===_sideOf(res),
+    actOver:actOver, modelOver:modelOver, ouHit:(actOver===modelOver),
+    impT:pred.lh+pred.la,actT:res[0]+res[1],impS:pred.lh-pred.la}; }
 async function syncScores(){
   let key=''; try{key=localStorage.getItem(KEYSTORE)||'';}catch(e){}
   const fld=document.getElementById('apiKey'); if(!key&&fld)key=fld.value.trim();
