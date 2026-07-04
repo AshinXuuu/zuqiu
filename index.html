@@ -440,6 +440,13 @@
       "7/3":["周五",[["03:00","西班牙 vs 奥地利"],["07:00","葡萄牙 vs 克罗地亚"],["11:00","瑞士 vs 阿尔及利亚"]]],
       "7/4":["周六",[["02:00","澳大利亚 vs 埃及"],["06:00","阿根廷 vs 佛得角"],["09:30","哥伦比亚 vs 加纳"]]]
     };
+    // 16 强淘汰赛(对阵已产生),北京时间(ET+12)。请核对:摩洛哥/巴拉圭为点球晋级
+    const FIXR16 = {
+      "7/5":["周日",[["01:00","加拿大 vs 摩洛哥"],["05:00","巴拉圭 vs 法国"]]],
+      "7/6":["周一",[["04:00","巴西 vs 挪威"],["08:00","墨西哥 vs 英格兰"]]],
+      "7/7":["周二",[["03:00","葡萄牙 vs 西班牙"],["05:00","美国 vs 比利时"]]],
+      "7/8":["周三",[["00:00","阿根廷 vs 埃及"],["04:00","瑞士 vs 哥伦比亚"]]]
+    };
     function fixHTML(title, FIX){
       let h='<div class="blocktitle scb">'+title+'</div>';
       for(const d in FIX){
@@ -543,9 +550,10 @@
     window.renderFixtures=function(){
       let h=fixSection('小组赛 第 1 轮',FIX1,true,true)+fixSection('小组赛 第 2 轮',FIX2,false,true)
             +fixSection('小组赛 第 3 轮',FIX3,false,true)
-            +fixSection('32 强淘汰赛',FIXR32,false,false);
+            +fixSection('32 强淘汰赛',FIXR32,false,false)
+            +fixSection('16 强淘汰赛',FIXR16,false,false);
       h+='<div class="blocktitle scb" style="margin-top:16px">后续淘汰赛(对阵待定)</div>';
-      ["16强","8强","4强","决赛"].forEach(s=>{ const k=KO[s];
+      ["8强","4强","决赛"].forEach(s=>{ const k=KO[s];
         h+='<div class="sc-ko-mini"><span class="kn">'+s+' <span class="sc-tag">'+k.n+'</span></span><span class="kd">'+k.d+'</span></div>'; });
       document.getElementById('fixScroll').innerHTML=h;
     };
