@@ -447,6 +447,12 @@
       "7/7":["周二",[["03:00","葡萄牙 vs 西班牙"],["05:00","美国 vs 比利时"]]],
       "7/8":["周三",[["00:00","阿根廷 vs 埃及"],["04:00","瑞士 vs 哥伦比亚"]]]
     };
+    // 8 强(四分之一决赛),北京时间(GMT+8)。第4场对阵待 7/8 两场16强产生
+    const FIXQF = {
+      "7/10":["周五",[["04:00","法国 vs 摩洛哥"]]],
+      "7/11":["周六",[["03:00","西班牙 vs 比利时"]]],
+      "7/12":["周日",[["05:00","挪威 vs 英格兰"],["09:00","阿根廷/埃及 vs 瑞士/哥伦比亚"]]]
+    };
     function fixHTML(title, FIX){
       let h='<div class="blocktitle scb">'+title+'</div>';
       for(const d in FIX){
@@ -551,9 +557,10 @@
       let h=fixSection('小组赛 第 1 轮',FIX1,true,true)+fixSection('小组赛 第 2 轮',FIX2,false,true)
             +fixSection('小组赛 第 3 轮',FIX3,false,true)
             +fixSection('32 强淘汰赛',FIXR32,false,false)
-            +fixSection('16 强淘汰赛',FIXR16,false,false);
+            +fixSection('16 强淘汰赛',FIXR16,false,false)
+            +fixSection('8 强(四分之一决赛)',FIXQF,false,false);
       h+='<div class="blocktitle scb" style="margin-top:16px">后续淘汰赛(对阵待定)</div>';
-      ["8强","4强","决赛"].forEach(s=>{ const k=KO[s];
+      ["4强","决赛"].forEach(s=>{ const k=KO[s];
         h+='<div class="sc-ko-mini"><span class="kn">'+s+' <span class="sc-tag">'+k.n+'</span></span><span class="kd">'+k.d+'</span></div>'; });
       document.getElementById('fixScroll').innerHTML=h;
     };
