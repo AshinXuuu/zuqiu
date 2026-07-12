@@ -568,60 +568,13 @@
   </script>
   <!-- =================== 赛程结束 =================== -->
 
-  <div class="grid">
-   <div class="col-left">
-    <!-- 输入 -->
-    <section class="card" id="inputcard">
-      <h2>输入赔率</h2>
-      <div class="teams">
-        <input type="text" id="home" placeholder="主队 / 队伍A" value="队伍A">
-        <input type="text" id="away" placeholder="客队 / 队伍B" value="队伍B">
-      </div>
+  <!-- 隐藏赔率字段:供赛程里点「看赔率›」灌入并计算比分概率 -->
+  <input type="hidden" id="home"><input type="hidden" id="away">
+  <input type="hidden" id="oH" value="1.95"><input type="hidden" id="oD" value="3.60"><input type="hidden" id="oA" value="4.00">
+  <input type="hidden" id="ouLine" value="2.5"><input type="hidden" id="oOver" value="1.90"><input type="hidden" id="oUnder" value="1.95">
+  <input type="hidden" id="ahLine"><input type="hidden" id="ahHome"><input type="hidden" id="ahAway">
 
-      <div class="blocktitle" style="margin-bottom:8px">胜 / 平 / 负(欧赔)</div>
-      <div class="row3">
-        <div class="field"><label>主胜</label><input type="number" step="0.01" id="oH" value="1.95"></div>
-        <div class="field"><label>平局</label><input type="number" step="0.01" id="oD" value="3.60"></div>
-        <div class="field"><label>客胜</label><input type="number" step="0.01" id="oA" value="4.00"></div>
-      </div>
-
-      <div class="blocktitle" style="margin-bottom:8px">大 / 小球</div>
-      <div class="row3">
-        <div class="field"><label>盘口</label><input type="number" step="0.25" id="ouLine" value="2.5"></div>
-        <div class="field"><label>大球</label><input type="number" step="0.01" id="oOver" value="1.90"></div>
-        <div class="field"><label>小球</label><input type="number" step="0.01" id="oUnder" value="1.95"></div>
-      </div>
-
-      <div class="blocktitle" style="margin-bottom:8px">让球(亚盘 · 可选)</div>
-      <div class="row3">
-        <div class="field"><label>让球线(主)</label><input type="number" step="0.25" id="ahLine" placeholder="-1.5"></div>
-        <div class="field"><label>让球主</label><input type="number" step="0.01" id="ahHome" placeholder="1.95"></div>
-        <div class="field"><label>让球客</label><input type="number" step="0.01" id="ahAway" placeholder="1.95"></div>
-      </div>
-
-      <button class="go" onclick="run()">计算比分概率</button>
-      <p class="hint">最少需胜平负 + 大小球。<b>填上让球(亚盘)能更准定位强弱差</b>,悬殊场比分形状更贴近真实。接 The Odds API 会自动带入让球。</p>
-    </section>
-
-    <!-- 串关计算器(腿来自「最可能的比分」的 ＋串) -->
-    <section class="card" id="calc">
-      <h2>串关计算器(复式)</h2>
-      <p class="calchint">在右侧「最可能的比分」点 <b>＋串</b> 加入。<b>每场可选多个比分</b>,最多 5 场;每场<b>命中其一</b>即算该场中。下方实时算复式注数、理论中奖率、组合公允赔率。</p>
-      <div id="calcBody"></div>
-      <div id="calcSum" style="display:none">
-        <div class="calc-stats">
-          <div class="cstat"><span class="k">复式注数</span><span class="v" id="cN">–</span></div>
-          <div class="cstat"><span class="k">理论中奖率</span><span class="v" id="cHit">–</span></div>
-          <div class="cstat"><span class="k">组合公允赔率</span><span class="v" id="cOdds">–</span></div>
-        </div>
-        <div class="calc-actions">
-          <button class="mini" onclick="clearCalc()">清空</button>
-        </div>
-        <p class="calchint" style="margin-top:10px">组合赔率为<b>公允</b>值(各腿 1/概率 相乘);真实庄家比分串关赔率会更短(水位高)。串得越多中奖率越低、方差越大。</p>
-      </div>
-    </section>
-   </div><!-- /col-left -->
-
+  <div class="grid" style="grid-template-columns:1fr">
     <!-- 输出 -->
     <section class="card" id="out">
       <!-- 比分概率 -->
@@ -796,11 +749,9 @@ function run(){
     th+=`<div class="toprow">
       <span class="sc">${i}-${j}</span>
       <span class="bar"><i style="width:${(p/tmax*100).toFixed(0)}%"></i></span>
-      <span class="pc">${(p*100).toFixed(1)}%</span>
-      <button class="addbtn" onclick="addScoreLeg(${i},${j},${p.toFixed(4)})" title="加入串关计算器">＋串</button></div>`;
+      <span class="pc">${(p*100).toFixed(1)}%</span></div>`;
   });
-  document.getElementById('top').innerHTML=th
-    +'<p class="pickhint">点「＋串」把该比分加入左侧「串关计算器」,再决定单场或串关加入「我的预测」。</p>';
+  document.getElementById('top').innerHTML=th;
 
   const t3=top.slice(0,3).reduce((a,b)=>a+b[2],0);
   const t5=top.slice(0,5).reduce((a,b)=>a+b[2],0);
@@ -1150,7 +1101,6 @@ function addCalc(mode){
   CALC=[]; saveCalc(); renderCalc();
 }
 
-renderCalc();    // 串关计算器初始态(含本机暂存的腿)
 loadOddsCache(); // 读今日缓存→建赔率索引
 if(window.renderFixtures) window.renderFixtures();  // 渲染合并赛程板(赛果+预测)
 (function(){ // 打开即自动回填赛果(有 key 且距上次>30分钟,省额度)
@@ -1158,7 +1108,7 @@ if(window.renderFixtures) window.renderFixtures();  // 渲染合并赛程板(赛
   let last=0; try{last=+(localStorage.getItem('wc_arch_lastsync')||0);}catch(e){}
   if(key && Date.now()-last>30*60*1000) syncScores();
 })();
-run();           // 首屏用默认赔率渲染一次
+// 不在首屏计算:比分概率卡默认隐藏,点赛程里的「看赔率›」才灌入并显示
 </script>
 </body>
 </html>
