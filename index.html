@@ -371,8 +371,9 @@
   <div id="keyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;align-items:center;justify-content:center;padding:20px">
     <div style="background:#fff;border-radius:14px;padding:22px;max-width:360px;width:100%">
       <h3 style="margin:0 0 8px;font-size:15px;color:var(--ink)">填入 The Odds API Key</h3>
-      <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;line-height:1.5">在 <a href="https://the-odds-api.com" target="_blank">the-odds-api.com</a> 注册可拿免费 key。只存在你本机浏览器,不上传。</p>
-      <input id="keyModalInput" type="text" placeholder="粘贴 key" style="width:100%;padding:9px 11px;border:1px solid var(--line-strong);border-radius:9px;font-family:inherit;margin-bottom:12px">
+      <div id="keyModalNote" style="display:none;font-size:12.5px;color:#8a4b2a;background:#fdf3ec;border:1px solid #f0dcc9;border-radius:9px;padding:9px 11px;margin:0 0 10px;line-height:1.5"></div>
+      <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;line-height:1.5">在 <a href="https://the-odds-api.com" target="_blank">the-odds-api.com</a> 注册可拿免费 key(每月有限额,按月重置)。额度用尽可换新 key 或升级套餐。key 只存你本机浏览器,不上传。</p>
+      <input id="keyModalInput" type="text" placeholder="粘贴新的 key" style="width:100%;padding:9px 11px;border:1px solid var(--line-strong);border-radius:9px;font-family:inherit;margin-bottom:12px">
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="mini" onclick="closeKeyModal()">取消</button>
         <button class="go" style="width:auto;margin:0;padding:9px 18px" onclick="saveKeyAndFetch()">保存并拉取</button>
@@ -838,7 +839,16 @@ function scheduleFetch(){
   const fld=document.getElementById('apiKey'); if(!key&&fld)key=fld.value.trim();
   if(key){ fetchOdds(); } else { openKeyModal(); }
 }
-function openKeyModal(){ const m=document.getElementById('keyModal'); if(m){m.style.display='flex'; const i=document.getElementById('keyModalInput'); if(i)i.focus();} }
+/* 额度用尽 / key 无效判定 */
+function isQuotaErr(status,detail){ return status===401||status===429||/quota|usage|unauthor|invalid/i.test(detail||''); }
+function openKeyModal(note){
+  const m=document.getElementById('keyModal'); if(!m)return;
+  const n=document.getElementById('keyModalNote');
+  if(n){ if(note){ n.textContent=note; n.style.display='block'; } else { n.style.display='none'; } }
+  const i=document.getElementById('keyModalInput');
+  if(i){ let k=''; try{k=localStorage.getItem(KEYSTORE)||'';}catch(e){} i.value=k; }
+  m.style.display='flex'; if(i)i.focus();
+}
 function closeKeyModal(){ const m=document.getElementById('keyModal'); if(m)m.style.display='none'; }
 function saveKeyAndFetch(){
   const k=document.getElementById('keyModalInput').value.trim();
@@ -939,7 +949,12 @@ async function syncScores(){
   if(!key) return 0;
   try{
     const r=await fetch(`https://api.the-odds-api.com/v4/sports/${sport}/scores/?daysFrom=3&apiKey=${encodeURIComponent(key)}`);
-    if(!r.ok) return 0;
+    if(!r.ok){ let detail=''; try{detail=(await r.json()).message||'';}catch(e){}
+      if(isQuotaErr(r.status,detail)){
+        setFetchMsg(`额度已用尽或 key 无效 (${r.status})。请填入新的 API key。`,'err');
+        openKeyModal('⚠ 当前 key 的额度已用尽或已失效('+r.status+')。请换一个新 key(免费额度按月重置)。');
+      }
+      return 0; }
     const data=await r.json();
     const done=data.filter(e=>e.completed&&Array.isArray(e.scores)&&e.scores.length>=2);
     const rs=loadRes(); let filled=0;
@@ -964,7 +979,13 @@ async function fetchOdds(){
   try{
     const r=await fetch(url);
     if(!r.ok){ let detail=''; try{detail=(await r.json()).message||'';}catch(e){}
-      setFetchMsg(`请求失败 (${r.status})。${detail||'检查 key、赛事 key 或免费额度。'}`,'err'); return; }
+      if(isQuotaErr(r.status,detail)){
+        setFetchMsg(`额度已用尽或 key 无效 (${r.status})。请填入新的 API key。`,'err');
+        openKeyModal('⚠ 当前 key 的额度已用尽或已失效('+r.status+')。请到 the-odds-api.com 换一个新 key(免费额度按月重置),填入后会自动重新拉取。');
+      } else {
+        setFetchMsg(`请求失败 (${r.status})。${detail||'检查 key、赛事 key 或免费额度。'}`,'err');
+      }
+      return; }
     const data=await r.json();
     if(!data.length){ setFetchMsg('该赛事当前没有可用赔率(可能不在比赛窗口)。可改赛事 key,或手动输入。',''); return; }
     const rem=r.headers.get('x-requests-remaining');
