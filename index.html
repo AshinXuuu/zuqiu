@@ -339,6 +339,37 @@
       .sc-match.click{cursor:pointer}
       .sc-match.click:hover{background:var(--accent-soft)}
       .sc-match .odtag{font-size:10.5px;color:var(--accent);font-weight:600;white-space:nowrap}
+      /* ===== 三日看板 ===== */
+      .dnav{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+      .dnav button{border:1px solid var(--line-strong);background:#fff;color:var(--ink-soft);
+        font-family:inherit;font-size:12.5px;padding:6px 12px;border-radius:8px;cursor:pointer}
+      .dnav button:hover{border-color:var(--accent);color:var(--accent)}
+      .dnav-t{font-size:12px;color:var(--ink-faint);margin-left:auto}
+      .dboard{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+      .dcol{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#fff}
+      .dcol.today{border-color:var(--accent)}
+      .dhead{background:#f6f6f4;padding:7px 10px;font-size:12.5px;font-weight:600;
+        color:var(--ink-soft);text-align:center}
+      .dcol.today .dhead{background:var(--accent-soft);color:var(--accent)}
+      .tbadge{font-size:10px;background:var(--accent);color:#fff;border-radius:5px;padding:1px 5px;margin-left:5px}
+      .dbody{padding:8px;display:flex;flex-direction:column;gap:8px;min-height:70px}
+      .dempty{font-size:12px;color:var(--ink-faint);text-align:center;padding:16px 0}
+      .dm{border:1px solid var(--line);border-radius:9px;padding:8px 9px;font-size:12.5px;background:#fff}
+      .dm.click{cursor:pointer}
+      .dm.click:hover{background:var(--accent-soft);border-color:var(--accent)}
+      .dm-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+      .dm-t{font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+      .dm-rd{font-size:10px;color:var(--ink-faint);background:#f3f3f1;border-radius:5px;padding:1px 5px}
+      .dm-mu{font-weight:600;color:var(--ink);margin-bottom:4px;line-height:1.35}
+      .dm-b{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:11px}
+      .dres{font-size:13.5px;color:var(--ink)}
+      .dtop{color:var(--ink-faint)}
+      /* 手机:只显示中间那天,用按钮左右翻 */
+      @media(max-width:640px){
+        .dboard{grid-template-columns:1fr}
+        .dcol:not(.center){display:none}
+        .dnav-t{margin-left:0;width:100%}
+      }
       /* 合并赛程+回溯的逐场行:左=时间/对阵,右=赛果/TOP3 */
       .mrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px}
       .mrow:last-child{border-bottom:none}
@@ -523,54 +554,73 @@
     }
     function dnum(d){ const a=d.split('/').map(Number); return 2026*10000+a[0]*100+a[1]; }
 
-    // 合并赛程+回溯:逐场行,左=时间/对阵,右=实际赛果 + 模型TOP3。有赔率的场次可点看概率。
-    function rowHTML(time, mu){
-      const p=mu.split(' vs '), home=p[0], away=p[1];
-      const k=[home,away].sort().join('|');
+    // ===== 三日看板:昨天 / 今天 / 明天,可左右翻查看任意日期 =====
+    const ROUNDS=[['小组1',FIX1],['小组2',FIX2],['小组3',FIX3],['32强',FIXR32],['16强',FIXR16],['8强',FIXQF],['4强',FIXSF]];
+    const BYDATE={};
+    ROUNDS.forEach(function(rr){ const rd=rr[0], FIX=rr[1];
+      for(const d in FIX){ const a=d.split('/').map(Number);
+        const key='2026-'+String(a[0]).padStart(2,'0')+'-'+String(a[1]).padStart(2,'0');
+        if(!BYDATE[key]) BYDATE[key]=[];
+        FIX[d][1].forEach(function(x){ BYDATE[key].push({t:x[0],mu:x[1],rd:rd}); });
+      }
+    });
+    Object.keys(BYDATE).forEach(function(k){ BYDATE[k].sort(function(x,y){ return x.t.localeCompare(y.t); }); });
+
+    function dkey(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+    function bjToday(){ try{ const s=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',
+        year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+      const a=s.split('-').map(Number); return new Date(a[0],a[1]-1,a[2]); }catch(e){ return new Date(); } }
+    const WD=['周日','周一','周二','周三','周四','周五','周六'];
+    let CENTER=bjToday();
+
+    function matchCard(m){
+      const p=m.mu.split(' vs ');
+      if(p.length<2) return '<div class="dm"><div class="dm-h"><span class="dm-t">'+m.t+'</span><span class="dm-rd">'+m.rd+'</span></div><div class="dm-mu">'+m.mu+'</div></div>';
+      const home=p[0], away=p[1], k=[home,away].sort().join('|');
       const has=window.ODDS_INDEX&&window.ODDS_INDEX[k];
       const res=(typeof getRes==='function')?getRes(home,away):null;
       const pred=(typeof predFor==='function')?predFor(home,away):null;
-      const resTxt = res? ('<span class="mres">'+res[0]+'-'+res[1]+'</span>') : '<span class="mres mmut">—</span>';
-      const ouTxt = res? ('<span class="mou">'+((res[0]+res[1])>=3?'大':'小')+'2.5</span>') : '';
-      let topTxt='<span class="mtop mmut">无预测</span>', mark='', ouPred='';
-      if(pred){ const top3=(pred.top||[]).slice(0,3).map(t=>t[0]+'-'+t[1]).join(' / ');
-        topTxt='<span class="mtop">模型 '+top3+'</span>';
+      let b='';
+      if(res){ b+='<b class="dres">'+res[0]+'-'+res[1]+'</b><span class="mou">'+((res[0]+res[1])>=3?'大':'小')+'2.5</span>'; }
+      if(pred){
+        const top3=(pred.top||[]).slice(0,3).map(function(t){ return t[0]+'-'+t[1]; }).join(' / ');
+        b+='<span class="dtop">模型 '+top3+'</span>';
         const lam=pred.lh+pred.la, pOver=1-Math.exp(-lam)*(1+lam+lam*lam/2);
-        if(!res) ouPred='<span class="mou">预'+(pOver>0.5?'大':'小')+'2.5 '+(pOver*100).toFixed(0)+'%</span>';
-        if(res && typeof metricsFor==='function'){ const m=metricsFor(pred,res);
-          if(m) mark=' '+(m.top1?'<span class="mhit">T1✓</span>':(m.top3?'<span class="mhit">T3✓</span>':'<span class="mmiss">✗</span>'))
-                     +(m.sHit?'<span class="mhit">·胜负✓</span>':'<span class="mmiss">·胜负✗</span>')
-                     +(m.ouHit?'<span class="mhit">·大小✓</span>':'<span class="mmiss">·大小✗</span>'); }
-      }
-      return '<div class="mrow'+(has?' click':'')+'"'+(has?' onclick="loadFix(\''+k+'\')"':'')+'>'
-        +'<div class="ml"><span class="mt">'+time+'</span><span class="mu">'+mu+(has?' <span class="odtag2">看赔率›</span>':'')+'</span></div>'
-        +'<div class="mr">'+resTxt+ouTxt+topTxt+ouPred+mark+'</div></div>';
+        if(!res) b+='<span class="mou">预'+(pOver>0.5?'大':'小')+'2.5 '+(pOver*100).toFixed(0)+'%</span>';
+        if(res && typeof metricsFor==='function'){ const mm=metricsFor(pred,res);
+          if(mm) b+='<span class="'+((mm.top1||mm.top3)?'mhit':'mmiss')+'">'+(mm.top1?'T1✓':(mm.top3?'T3✓':'比分✗'))+'</span>'
+                   +'<span class="'+(mm.sHit?'mhit':'mmiss')+'">胜负'+(mm.sHit?'✓':'✗')+'</span>'
+                   +'<span class="'+(mm.ouHit?'mhit':'mmiss')+'">大小'+(mm.ouHit?'✓':'✗')+'</span>'; }
+      } else if(!res){ b+='<span class="mmut">未拉赔率</span>'; }
+      return '<div class="dm'+(has?' click':'')+'"'+(has?' onclick="loadFix(\''+k+'\')"':'')+'>'
+        +'<div class="dm-h"><span class="dm-t">'+m.t+'</span><span class="dm-rd">'+m.rd+'</span></div>'
+        +'<div class="dm-mu">'+m.mu+(has?' <span class="odtag2">看赔率›</span>':'')+'</div>'
+        +'<div class="dm-b">'+b+'</div></div>';
     }
-    function fixSection(title, FIX, first, forceFold){
-      const tn=todayNum();
-      let h='<div class="blocktitle scb" style="margin-top:'+(first?'0':'16px')+'">'+title+'</div>';
-      for(const d in FIX){
-        const past=forceFold||dnum(d)<tn;       // 强制折叠 或 该日已过 → 折叠
-        let rows=''; FIX[d][1].forEach(m=> rows+=rowHTML(m[0],m[1]));
-        h+='<div class="sc-day'+(past?' fold':'')+'">'
-          +'<div class="sc-dhead" onclick="this.parentNode.classList.toggle(\'fold\')">'
-          +'<span>北京 '+d+' · '+FIX[d][0]+(past?'<span class="sc-done">已结束</span>':'')+'</span>'
-          +'<span class="dchev">▾</span></div><div class="sc-dbody">'+rows+'</div></div>';
-      }
-      return h;
-    }
+
     window.renderFixtures=function(){
-      let h=fixSection('小组赛 第 1 轮',FIX1,true,true)+fixSection('小组赛 第 2 轮',FIX2,false,true)
-            +fixSection('小组赛 第 3 轮',FIX3,false,true)
-            +fixSection('32 强淘汰赛',FIXR32,false,false)
-            +fixSection('16 强淘汰赛',FIXR16,false,false)
-            +fixSection('8 强(四分之一决赛)',FIXQF,false,false)
-            +fixSection('4 强(半决赛)',FIXSF,false,false);
-      h+='<div class="blocktitle scb" style="margin-top:16px">季军战 / 决赛</div>';
-      ["决赛"].forEach(s=>{ const k=KO[s];
-        h+='<div class="sc-ko-mini"><span class="kn">'+s+' <span class="sc-tag">'+k.n+'</span></span><span class="kd">'+k.d+'</span></div>'; });
+      const todayK=dkey(bjToday());
+      let h='<div class="dnav">'
+        +'<button onclick="shiftDay(-1)">‹ 前一天</button>'
+        +'<button onclick="shiftDay(1)">后一天 ›</button>'
+        +'<button onclick="goToday()">回到今天</button>'
+        +'<span class="dnav-t" id="dnavT"></span></div><div class="dboard">';
+      for(let o=-1;o<=1;o++){
+        const d=new Date(CENTER); d.setDate(d.getDate()+o);
+        const k=dkey(d), isT=(k===todayK), list=BYDATE[k]||[];
+        h+='<div class="dcol'+(isT?' today':'')+(o===0?' center':'')+'">'
+          +'<div class="dhead">'+(d.getMonth()+1)+'/'+d.getDate()+' '+WD[d.getDay()]+(isT?'<span class="tbadge">今天</span>':'')+'</div>'
+          +'<div class="dbody">';
+        if(!list.length) h+='<div class="dempty">无比赛</div>';
+        list.forEach(function(m){ h+=matchCard(m); });
+        h+='</div></div>';
+      }
+      h+='</div><p class="sc-flow" style="margin-top:10px">时间均为北京时间。季军战 北京 7/19、决赛 北京 7/20 03:00(对阵待半决赛)。左右可翻看任意日期。</p>';
       document.getElementById('fixScroll').innerHTML=h;
+      const t=document.getElementById('dnavT'); if(t) t.textContent='中间列:北京 '+(CENTER.getMonth()+1)+'/'+CENTER.getDate();
     };
+    window.shiftDay=function(n){ CENTER.setDate(CENTER.getDate()+n); window.renderFixtures(); };
+    window.goToday=function(){ CENTER=bjToday(); window.renderFixtures(); };
   })();
   </script>
   <!-- =================== 赛程结束 =================== -->
