@@ -910,6 +910,49 @@ try{ const k=localStorage.getItem(KEYSTORE); if(k)document.getElementById('apiKe
 
 /* ---------- 多联赛:联赛选择 + API 比赛并入看板 ---------- */
 const LGKEY='wc_leagues_v1', MATCHKEY='wc_api_matches_v1';
+
+/* 联赛中文名(按 sport key 精确匹配) */
+const LG_ZH={
+ soccer_fifa_world_cup:'国际足联世界杯', soccer_fifa_world_cup_qualifiers_europe:'世预赛·欧洲区',
+ soccer_fifa_world_cup_qualifiers_south_america:'世预赛·南美区', soccer_fifa_world_cup_winner:'世界杯冠军',
+ soccer_fifa_world_cup_womens:'女足世界杯', soccer_uefa_european_championship:'欧洲杯',
+ soccer_uefa_euro_qualification:'欧洲杯预选赛', soccer_uefa_nations_league:'欧洲国家联赛',
+ soccer_uefa_champs_league:'欧洲冠军联赛', soccer_uefa_champs_league_qualification:'欧冠资格赛',
+ soccer_uefa_champs_league_women:'女足欧冠', soccer_uefa_europa_league:'欧罗巴联赛',
+ soccer_uefa_europa_conference_league:'欧会联赛', soccer_conmebol_copa_america:'美洲杯',
+ soccer_conmebol_copa_libertadores:'南美解放者杯', soccer_conmebol_copa_sudamericana:'南美球会杯',
+ soccer_africa_cup_of_nations:'非洲国家杯', soccer_fifa_club_world_cup:'世俱杯',
+ soccer_epl:'英超', soccer_efl_champ:'英冠', soccer_england_league1:'英甲',
+ soccer_england_league2:'英乙', soccer_england_efl_cup:'英联杯', soccer_fa_cup:'英格兰足总杯',
+ soccer_spain_la_liga:'西甲', soccer_spain_segunda_division:'西乙', soccer_spain_copa_del_rey:'西班牙国王杯',
+ soccer_italy_serie_a:'意甲', soccer_italy_serie_b:'意乙',
+ soccer_germany_bundesliga:'德甲', soccer_germany_bundesliga2:'德乙', soccer_germany_liga3:'德丙',
+ soccer_france_ligue_one:'法甲', soccer_france_ligue_two:'法乙',
+ soccer_netherlands_eredivisie:'荷甲', soccer_portugal_primeira_liga:'葡超',
+ soccer_belgium_first_div:'比甲', soccer_turkey_super_league:'土超',
+ soccer_greece_super_league:'希腊超', soccer_switzerland_superleague:'瑞士超',
+ soccer_austria_bundesliga:'奥地利甲', soccer_denmark_superliga:'丹麦超',
+ soccer_norway_eliteserien:'挪超', soccer_sweden_allsvenskan:'瑞典超',
+ soccer_sweden_superettan:'瑞典甲', soccer_finland_veikkausliiga:'芬超',
+ soccer_poland_ekstraklasa:'波兰甲', soccer_russia_premier_league:'俄超',
+ soccer_scotland_premiership:'苏超', soccer_ireland_premier_division:'爱尔兰超',
+ soccer_league_of_ireland:'爱尔兰联赛',
+ soccer_china_superleague:'中超', soccer_japan_j_league:'日职联', soccer_korea_kleague1:'韩K联',
+ soccer_australia_aleague:'澳超', soccer_usa_mls:'美职联', soccer_mexico_ligamx:'墨西哥超',
+ soccer_brazil_campeonato:'巴西甲', soccer_brazil_serie_b:'巴西乙',
+ soccer_argentina_primera_division:'阿根廷甲', soccer_chile_campeonato:'智利甲',
+ soccer_spl:'新加坡超', soccer_league_of_thailand:'泰超'
+};
+/* 兜底:英文标题里的关键词 → 中文 */
+function lgZh(key,title){
+  if(LG_ZH[key]) return LG_ZH[key];
+  const t=title||key;
+  const RULE=[[/champions league/i,'冠军联赛'],[/europa/i,'欧罗巴'],[/premier league/i,'超级联赛'],
+    [/championship/i,'锦标赛'],[/cup/i,'杯赛'],[/qualif/i,'预选赛'],[/women/i,'女足'],
+    [/friendl/i,'友谊赛'],[/division/i,'联赛'],[/league/i,'联赛']];
+  for(const r of RULE){ if(r[0].test(t)) return t+'('+r[1]+')'; }
+  return t;
+}
 function getLeagues(){ try{ const a=JSON.parse(localStorage.getItem(LGKEY)); if(Array.isArray(a)&&a.length) return a; }catch(e){}
   return ['soccer_fifa_world_cup']; }
 function loadMatches(){ try{ return JSON.parse(localStorage.getItem(MATCHKEY))||{}; }catch(e){ return {}; } }
@@ -918,7 +961,7 @@ window.API_MATCHES=loadMatches();
 function storeApiMatches(data){
   const m=loadMatches(); let n=0;
   (data||[]).forEach(function(ev){ if(!ev||!ev.id||!ev.commence_time)return;
-    m[ev.id]={id:ev.id, sk:ev._sk||'', title:ev.sport_title||'联赛',
+    m[ev.id]={id:ev.id, sk:ev._sk||'', title:lgZh(ev._sk||'',ev.sport_title||'联赛'),
       commence:ev.commence_time, home:zh(ev.home_team), away:zh(ev.away_team)}; n++; });
   /* 只保留最近 45 天内的,避免 localStorage 无限增长 */
   const cut=Date.now()-45*864e5;
@@ -949,10 +992,18 @@ async function openLeagues(){
     const soccer=data.filter(function(s){ return /^soccer_/.test(s.key) && s.active!==false; });
     const sel=getLeagues();
     if(!soccer.length){ list.innerHTML='<div style="font-size:13px;color:var(--ink-faint)">没有可用的足球联赛</div>'; return; }
+    /* 排序:已选 > 有中文名(常见联赛) > 其余 */
+    soccer.sort(function(a,b){
+      const sa=(sel.indexOf(a.key)>=0?0:1), sb=(sel.indexOf(b.key)>=0?0:1); if(sa!==sb) return sa-sb;
+      const ka=(LG_ZH[a.key]?0:1), kb=(LG_ZH[b.key]?0:1); if(ka!==kb) return ka-kb;
+      return a.key.localeCompare(b.key);
+    });
     list.innerHTML=soccer.map(function(s){
+      const cn=lgZh(s.key,s.title), known=!!LG_ZH[s.key];
       return '<label style="display:flex;gap:8px;align-items:center;padding:5px 0;font-size:13px;cursor:pointer">'
         +'<input type="checkbox" class="lgcb" value="'+s.key+'"'+(sel.indexOf(s.key)>=0?' checked':'')+'>'
-        +'<span>'+s.title+'<small style="color:var(--ink-faint)"> · '+s.key+'</small></span></label>';
+        +'<span'+(known?'':' style="color:var(--ink-faint)"')+'>'+cn
+        +'<small style="color:var(--ink-faint)"> · '+s.title+'</small></span></label>';
     }).join('');
   }catch(e){ list.innerHTML='<div style="font-size:13px;color:var(--warn)">查询失败(网络或 CORS)</div>'; }
 }
