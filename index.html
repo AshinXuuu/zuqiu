@@ -390,12 +390,29 @@
 
     <section class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;flex-wrap:wrap">
-        <h2 style="margin:0">世界杯赛程 · 北京时间 · 赛果 / 预测</h2>
-        <button class="addbtn" onclick="scheduleFetch()">拉取赔率 + 回填赛果</button>
+        <h2 style="margin:0">赛程看板 · 北京时间 · 赛果 / 预测</h2>
+        <span style="display:flex;gap:8px">
+          <button class="addbtn" onclick="openLeagues()">选择联赛</button>
+          <button class="addbtn" onclick="scheduleFetch()">拉取赔率 + 回填赛果</button>
+        </span>
       </div>
       <p class="apimsg" id="fixMsg" style="margin:0 0 8px">左半=时间与对阵;右半=实际赛果 + 模型 TOP3 预测。点「拉取赔率」会同时拉赔率(用于预测、可点看概率)并回填近 3 天赛果。</p>
       <div class="sched-scroll" id="fixScroll" style="height:auto;max-height:600px"></div>
     </section>
+  </div>
+
+  <!-- 联赛选择弹框 -->
+  <div id="lgModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;align-items:center;justify-content:center;padding:20px">
+    <div style="background:#fff;border-radius:14px;padding:22px;max-width:460px;width:100%">
+      <h3 style="margin:0 0 8px;font-size:15px;color:var(--ink)">选择联赛</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 10px;line-height:1.5">勾选要拉取的联赛,拉到的比赛会<b>直接并进赛程看板</b>(按北京日期归位)。<br>
+        <b>额度提醒</b>:查询联赛列表<b>免费</b>;但每个联赛每次拉赔率约耗 <b>3 个额度</b>(3 个盘口),回填赛果每联赛约 <b>2 个额度</b>。选得越多越费,建议只勾你真要看的。</p>
+      <div id="lgList" style="max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="mini" onclick="closeLgModal()">取消</button>
+        <button class="go" style="width:auto;margin:0;padding:9px 18px" onclick="saveLeagues()">保存</button>
+      </div>
+    </div>
   </div>
 
   <!-- API key 配置弹框 -->
@@ -556,15 +573,29 @@
 
     // ===== 三日看板:昨天 / 今天 / 明天,可左右翻查看任意日期 =====
     const ROUNDS=[['小组1',FIX1],['小组2',FIX2],['小组3',FIX3],['32强',FIXR32],['16强',FIXR16],['8强',FIXQF],['4强',FIXSF]];
-    const BYDATE={};
-    ROUNDS.forEach(function(rr){ const rd=rr[0], FIX=rr[1];
-      for(const d in FIX){ const a=d.split('/').map(Number);
-        const key='2026-'+String(a[0]).padStart(2,'0')+'-'+String(a[1]).padStart(2,'0');
-        if(!BYDATE[key]) BYDATE[key]=[];
-        FIX[d][1].forEach(function(x){ BYDATE[key].push({t:x[0],mu:x[1],rd:rd}); });
-      }
-    });
-    Object.keys(BYDATE).forEach(function(k){ BYDATE[k].sort(function(x,y){ return x.t.localeCompare(y.t); }); });
+    // 动态聚合:写死的世界杯赛程 + API 拉到的各联赛比赛
+    function buildByDate(){
+      const B={};
+      ROUNDS.forEach(function(rr){ const rd=rr[0], FIX=rr[1];
+        for(const d in FIX){ const a=d.split('/').map(Number);
+          const key='2026-'+String(a[0]).padStart(2,'0')+'-'+String(a[1]).padStart(2,'0');
+          if(!B[key]) B[key]=[];
+          FIX[d][1].forEach(function(x){ B[key].push({t:x[0],mu:x[1],rd:rd}); });
+        }
+      });
+      const AM=window.API_MATCHES||{};
+      Object.keys(AM).forEach(function(id){ const e=AM[id];
+        if(!e||!e.commence||!e.home||!e.away) return;
+        if(typeof bjParts!=='function') return;
+        const bp=bjParts(e.commence); if(!bp) return;
+        const mu=e.home+' vs '+e.away;
+        if(!B[bp.dkey]) B[bp.dkey]=[];
+        if(B[bp.dkey].some(function(x){ return x.mu===mu; })) return;   // 与写死赛程去重
+        B[bp.dkey].push({t:bp.time, mu:mu, rd:(e.title||'联赛')});
+      });
+      Object.keys(B).forEach(function(k){ B[k].sort(function(x,y){ return x.t.localeCompare(y.t); }); });
+      return B;
+    }
 
     function dkey(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
     function bjToday(){ try{ const s=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',
@@ -599,6 +630,7 @@
     }
 
     window.renderFixtures=function(){
+      const BYDATE=buildByDate();
       const todayK=dkey(bjToday());
       let h='<div class="dnav">'
         +'<button onclick="shiftDay(-1)">‹ 前一天</button>'
@@ -876,6 +908,63 @@ function zh(name){
 const KEYSTORE='wc_odds_apikey';
 try{ const k=localStorage.getItem(KEYSTORE); if(k)document.getElementById('apiKey').value=k; }catch(e){}
 
+/* ---------- 多联赛:联赛选择 + API 比赛并入看板 ---------- */
+const LGKEY='wc_leagues_v1', MATCHKEY='wc_api_matches_v1';
+function getLeagues(){ try{ const a=JSON.parse(localStorage.getItem(LGKEY)); if(Array.isArray(a)&&a.length) return a; }catch(e){}
+  return ['soccer_fifa_world_cup']; }
+function loadMatches(){ try{ return JSON.parse(localStorage.getItem(MATCHKEY))||{}; }catch(e){ return {}; } }
+function saveMatches(m){ try{ localStorage.setItem(MATCHKEY,JSON.stringify(m)); }catch(e){} }
+window.API_MATCHES=loadMatches();
+function storeApiMatches(data){
+  const m=loadMatches(); let n=0;
+  (data||[]).forEach(function(ev){ if(!ev||!ev.id||!ev.commence_time)return;
+    m[ev.id]={id:ev.id, sk:ev._sk||'', title:ev.sport_title||'联赛',
+      commence:ev.commence_time, home:zh(ev.home_team), away:zh(ev.away_team)}; n++; });
+  /* 只保留最近 45 天内的,避免 localStorage 无限增长 */
+  const cut=Date.now()-45*864e5;
+  Object.keys(m).forEach(function(k){ const t=Date.parse(m[k].commence); if(!isNaN(t)&&t<cut) delete m[k]; });
+  saveMatches(m); window.API_MATCHES=m;
+  return n;
+}
+/* ISO 时间 → 北京日期键 + HH:MM */
+function bjParts(iso){
+  try{ const d=new Date(iso);
+    const dk=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+    const tm=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hour12:false}).format(d);
+    return {dkey:dk, time:tm};
+  }catch(e){ return null; }
+}
+async function openLeagues(){
+  let key=''; try{key=localStorage.getItem(KEYSTORE)||'';}catch(e){}
+  const fld=document.getElementById('apiKey'); if(!key&&fld)key=fld.value.trim();
+  if(!key){ openKeyModal('先填入 API key,才能查询可用联赛列表(该查询免费)。'); return; }
+  const m=document.getElementById('lgModal'); m.style.display='flex';
+  const list=document.getElementById('lgList'); list.innerHTML='<div style="font-size:13px;color:var(--ink-faint)">加载联赛列表…</div>';
+  try{
+    const r=await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${encodeURIComponent(key)}`);
+    if(!r.ok){ let d=''; try{d=(await r.json()).message||'';}catch(e){}
+      if(isQuotaErr(r.status,d)){ closeLgModal(); openKeyModal('⚠ key 无效或额度异常('+r.status+')。请换新 key。'); return; }
+      list.innerHTML='<div style="font-size:13px;color:var(--warn)">查询失败 ('+r.status+')</div>'; return; }
+    const data=await r.json();
+    const soccer=data.filter(function(s){ return /^soccer_/.test(s.key) && s.active!==false; });
+    const sel=getLeagues();
+    if(!soccer.length){ list.innerHTML='<div style="font-size:13px;color:var(--ink-faint)">没有可用的足球联赛</div>'; return; }
+    list.innerHTML=soccer.map(function(s){
+      return '<label style="display:flex;gap:8px;align-items:center;padding:5px 0;font-size:13px;cursor:pointer">'
+        +'<input type="checkbox" class="lgcb" value="'+s.key+'"'+(sel.indexOf(s.key)>=0?' checked':'')+'>'
+        +'<span>'+s.title+'<small style="color:var(--ink-faint)"> · '+s.key+'</small></span></label>';
+    }).join('');
+  }catch(e){ list.innerHTML='<div style="font-size:13px;color:var(--warn)">查询失败(网络或 CORS)</div>'; }
+}
+function closeLgModal(){ const m=document.getElementById('lgModal'); if(m)m.style.display='none'; }
+function saveLeagues(){
+  const sel=[]; document.querySelectorAll('#lgList .lgcb').forEach(function(c){ if(c.checked) sel.push(c.value); });
+  if(!sel.length){ alert('至少选一个联赛'); return; }
+  try{ localStorage.setItem(LGKEY,JSON.stringify(sel)); }catch(e){}
+  closeLgModal();
+  setFetchMsg('已选 '+sel.length+' 个联赛(约耗 '+(sel.length*3)+' 额度/次)。点「拉取赔率 + 回填赛果」开始拉取。','ok');
+}
+
 /* 拉取的比赛列表缓存一天,免重复拉取、可点击查阅 */
 const ODDSCACHE='wc_odds_list_v1';
 let ODDS_INDEX={};
@@ -1001,60 +1090,80 @@ function metricsFor(pred,res){ if(!res||!pred)return null; const top=pred.top||[
 async function syncScores(){
   let key=''; try{key=localStorage.getItem(KEYSTORE)||'';}catch(e){}
   const fld=document.getElementById('apiKey'); if(!key&&fld)key=fld.value.trim();
-  const sport=(document.getElementById('sportKey')&&document.getElementById('sportKey').value.trim())||'soccer_fifa_world_cup';
   if(!key) return 0;
-  try{
-    const r=await fetch(`https://api.the-odds-api.com/v4/sports/${sport}/scores/?daysFrom=3&apiKey=${encodeURIComponent(key)}`);
-    if(!r.ok){ let detail=''; try{detail=(await r.json()).message||'';}catch(e){}
-      if(isQuotaErr(r.status,detail)){
-        setFetchMsg(`额度已用尽或 key 无效 (${r.status})。请填入新的 API key。`,'err');
-        openKeyModal('⚠ 当前 key 的额度已用尽或已失效('+r.status+')。请换一个新 key(免费额度按月重置)。');
-      }
-      return 0; }
-    const data=await r.json();
-    const done=data.filter(e=>e.completed&&Array.isArray(e.scores)&&e.scores.length>=2);
-    const rs=loadRes(); let filled=0;
-    done.forEach(ev=>{ const sm={}; ev.scores.forEach(s=>sm[s.name]=Number(s.score));
-      if((ev.home_team in sm)&&(ev.away_team in sm)){
-        rs[rkey(zh(ev.home_team),zh(ev.away_team))]={home:zh(ev.home_team),hg:sm[ev.home_team],ag:sm[ev.away_team]}; filled++; } });
-    if(filled) saveRes(rs);
-    try{ localStorage.setItem('wc_arch_lastsync',Date.now()+''); }catch(e){}
-    if(window.renderFixtures) window.renderFixtures();
-    return filled;
-  }catch(e){ return 0; }
+  const leagues=getLeagues();
+  const rs=loadRes(); let filled=0, quota=false;
+  for(let i=0;i<leagues.length;i++){
+    const sk=leagues[i];
+    try{
+      const r=await fetch(`https://api.the-odds-api.com/v4/sports/${sk}/scores/?daysFrom=3&apiKey=${encodeURIComponent(key)}`);
+      if(!r.ok){ let detail=''; try{detail=(await r.json()).message||'';}catch(e){}
+        if(isQuotaErr(r.status,detail)){ quota=true; break; }
+        continue; }
+      const data=await r.json();
+      data.filter(function(e){return e.completed&&Array.isArray(e.scores)&&e.scores.length>=2;})
+        .forEach(function(ev){ const sm={}; ev.scores.forEach(function(s){ sm[s.name]=Number(s.score); });
+          if((ev.home_team in sm)&&(ev.away_team in sm)){
+            rs[rkey(zh(ev.home_team),zh(ev.away_team))]={home:zh(ev.home_team),hg:sm[ev.home_team],ag:sm[ev.away_team]}; filled++; } });
+    }catch(e){}
+  }
+  if(quota){
+    setFetchMsg('额度已用尽或 key 无效。请填入新的 API key。','err');
+    openKeyModal('⚠ 当前 key 的额度已用尽或已失效。请到 the-odds-api.com 换一个新 key(免费额度按月重置)。');
+    return 0;
+  }
+  if(filled) saveRes(rs);
+  try{ localStorage.setItem('wc_arch_lastsync',Date.now()+''); }catch(e){}
+  if(window.renderFixtures) window.renderFixtures();
+  return filled;
 }
 
 async function fetchOdds(){
-  let key=document.getElementById('apiKey').value.trim();
+  const fld=document.getElementById('apiKey');
+  let key=fld?fld.value.trim():'';
   if(!key){ try{key=localStorage.getItem(KEYSTORE)||'';}catch(e){} }
-  const sport=document.getElementById('sportKey').value.trim()||'soccer_fifa_world_cup';
   if(!key){ setFetchMsg('请先填入 API key。','err'); openKeyModal(); return; }
   try{ localStorage.setItem(KEYSTORE,key); }catch(e){}
-  setFetchMsg('拉取中…');
-  const url=`https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${encodeURIComponent(key)}&regions=eu&markets=h2h,totals,spreads&oddsFormat=decimal`;
-  try{
-    const r=await fetch(url);
-    if(!r.ok){ let detail=''; try{detail=(await r.json()).message||'';}catch(e){}
-      if(isQuotaErr(r.status,detail)){
-        setFetchMsg(`额度已用尽或 key 无效 (${r.status})。请填入新的 API key。`,'err');
-        openKeyModal('⚠ 当前 key 的额度已用尽或已失效('+r.status+')。请到 the-odds-api.com 换一个新 key(免费额度按月重置),填入后会自动重新拉取。');
-      } else {
-        setFetchMsg(`请求失败 (${r.status})。${detail||'检查 key、赛事 key 或免费额度。'}`,'err');
-      }
-      return; }
-    const data=await r.json();
-    if(!data.length){ setFetchMsg('该赛事当前没有可用赔率(可能不在比赛窗口)。可改赛事 key,或手动输入。',''); return; }
-    const rem=r.headers.get('x-requests-remaining');
-    try{ localStorage.setItem(ODDSCACHE,JSON.stringify({ts:Date.now(),data})); }catch(e){}
-    buildOddsIndex(data);
-    const arch=archiveSnapshot(data);
-    renderMatchList(data);
-    if(window.renderFixtures) window.renderFixtures();
-    syncScores().then(n=>{ if(n) setFetchMsg(`已拉取 ${data.length} 场、归档 ${arch} 场,并回填 ${n} 场赛果。`+(rem?`　剩余额度 ${rem}`:''),'ok'); });
-    setFetchMsg(`已拉取 ${data.length} 场(已缓存)。有赔率的场次标「看赔率›」可点;已归档 ${arch} 场未开赛比赛供复盘;正在回填赛果…`+(rem?`　剩余额度 ${rem}`:''),'ok');
-  }catch(e){
-    setFetchMsg('浏览器直连失败(网络或 CORS)。可手动输入赔率。','err');
+
+  const leagues=getLeagues();
+  setFetchMsg('拉取中…(共 '+leagues.length+' 个联赛)');
+  let all=[], rem=null, quota=false, failed=[];
+  for(let i=0;i<leagues.length;i++){
+    const sk=leagues[i];
+    try{
+      const url=`https://api.the-odds-api.com/v4/sports/${sk}/odds/?apiKey=${encodeURIComponent(key)}&regions=eu&markets=h2h,totals,spreads&oddsFormat=decimal`;
+      const r=await fetch(url);
+      if(!r.ok){ let detail=''; try{detail=(await r.json()).message||'';}catch(e){}
+        if(isQuotaErr(r.status,detail)){ quota=true; break; }
+        failed.push(sk); continue; }
+      const data=await r.json();
+      const k=r.headers.get('x-requests-remaining'); if(k!=null) rem=k;
+      data.forEach(function(ev){ ev._sk=sk; });
+      all=all.concat(data);
+    }catch(e){ failed.push(sk); }
   }
+
+  if(quota){
+    setFetchMsg('额度已用尽或 key 无效。请填入新的 API key。','err');
+    openKeyModal('⚠ 当前 key 的额度已用尽或已失效。请到 the-odds-api.com 换一个新 key(免费额度按月重置),填入后会自动重新拉取。');
+    return;
+  }
+  if(!all.length){
+    setFetchMsg('所选联赛当前没有可用赔率(可能不在比赛窗口)。可在「选择联赛」里换一个联赛。'+(failed.length?'　失败:'+failed.join(', '):''),'err');
+    return;
+  }
+
+  try{ localStorage.setItem(ODDSCACHE,JSON.stringify({ts:Date.now(),data:all})); }catch(e){}
+  buildOddsIndex(all);
+  const arch=archiveSnapshot(all);
+  const nm=storeApiMatches(all);
+  renderMatchList(all);
+  if(window.renderFixtures) window.renderFixtures();
+  const tail=(rem?'　剩余额度 '+rem:'')+(failed.length?'　(失败:'+failed.join(', ')+')':'');
+  setFetchMsg('已拉取 '+leagues.length+' 个联赛共 '+all.length+' 场,已写入赛程看板('+nm+' 场);归档 '+arch+' 场未开赛;正在回填赛果…'+tail,'ok');
+  syncScores().then(function(n){
+    setFetchMsg('已拉取 '+all.length+' 场('+leagues.length+' 个联赛),写入看板 '+nm+' 场,归档 '+arch+' 场,回填 '+n+' 场赛果。点看板里的场次可看赔率。'+tail,'ok');
+  });
 }
 function extract(ev){
   // 优先 pinnacle,否则第一家
