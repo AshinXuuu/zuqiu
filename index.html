@@ -33,10 +33,6 @@
     padding:48px 20px 80px;
   }
   .wrap{max-width:var(--maxw);margin:0 auto}
-  header.top{margin-bottom:36px}
-  h1{font-size:22px;font-weight:600;letter-spacing:.2px;margin:0 0 6px}
-  .sub{color:var(--ink-soft);font-size:14px;margin:0;max-width:640px}
-  .sub b{color:var(--ink);font-weight:600}
 
   .grid{display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start}
   @media(max-width:820px){.grid{grid-template-columns:1fr}}
@@ -110,9 +106,6 @@
   .apimsg.err{color:var(--warn)}
   .apimsg.ok{color:var(--accent)}
 
-  footer{margin-top:36px;font-size:12px;color:var(--ink-faint);line-height:1.7;
-    border-top:1px solid var(--line);padding-top:20px}
-  footer b{color:var(--ink-soft);font-weight:600}
   a{color:var(--accent);text-decoration:none}
   a:hover{text-decoration:underline}
 
@@ -150,11 +143,6 @@
 </head>
 <body>
 <div class="wrap">
-  <header class="top">
-    <h1>世界杯 · 赔率 → 比分概率</h1>
-    <p class="sub">在下方看板「拉取赔率」后点任意场次,工具会用该场的<b>胜平负</b>、<b>大小球</b>(和让球)赔率去掉水位、还原出市场公允概率,并展开成完整的比分概率分布。<b>这是在解码市场,不是打败市场</b> —— 它复述的是赔率里已有的信息。</p>
-  </header>
-
   <!-- ===================== 世界杯赛程 + 回溯 ===================== -->
   <div id="schedule">
     <style>
@@ -429,9 +417,6 @@
   <!-- API key 隐藏存储(通过赛程卡「拉取赔率」按钮触发,无 key 时弹框配置) -->
   <input type="hidden" id="apiKey">
 
-  <footer>
-    <b>诚实声明.</b> 本工具默认定位为分析/研究工具。它把赔率解码成概率分布 —— 输出与去水位后的市场观点一致,本身<b>不产生 edge</b>。即便比分表完美,单场「最可能比分」的命中率上限也只有约 <b>10–14%</b>,这是足球的内在方差决定的,换任何模型都一样。要超越市场,必须加入赔率里没有的独立信息(伤停、轮换、动机),并用 CLV、概率校准等手段诚实验证。任何真实投注都涉及资金风险。
-  </footer>
 </div>
 
 <!-- 数学层(de-vig + Dixon-Coles):独立模块,无 DOM 依赖,小程序可直接复用 -->
