@@ -991,7 +991,35 @@ const CLUB_ZH={
  "IK Sirius":"天狼星","GAIS":"哥德堡GAIS","Degerfors IF":"德格福斯",
  "IF Brommapojkarna":"布罗马","Brommapojkarna":"布罗马","IFK Varnamo":"韦纳穆","IFK Värnamo":"韦纳穆",
  "Osters IF":"厄斯特","Östers IF":"厄斯特","Orgryte IS":"厄格里特","Helsingborg":"赫尔辛堡",
- "Varbergs BoIS":"瓦尔贝里","Kalmar FF":"卡尔马","AFC Eskilstuna":"埃斯基尔斯蒂纳"
+ "Varbergs BoIS":"瓦尔贝里","Kalmar FF":"卡尔马","AFC Eskilstuna":"埃斯基尔斯蒂纳",
+
+ /* ===== 欧冠资格赛常见球队(小联赛冠军) ===== */
+ "Rosenborg":"罗森博格","Molde":"莫尔德","Brann":"布兰","Viking":"维京",
+ "FC Midtjylland":"中日德兰","Midtjylland":"中日德兰","Brondby":"布隆德比","Silkeborg":"锡尔克堡",
+ "HJK Helsinki":"赫尔辛基HJK","KuPS":"库奥皮奥","Shamrock Rovers":"三叶草流浪者",
+ "Bohemians":"波希米亚人","Linfield":"林菲尔德","Larne":"拉恩","The New Saints":"新圣徒",
+ "Heart of Midlothian":"哈茨","Hearts":"哈茨","Hibernian":"希伯尼安","Aberdeen":"阿伯丁",
+ "Legia Warsaw":"华沙莱吉亚","Lech Poznan":"波兹南莱赫","Jagiellonia":"亚吉洛尼亚","Raków":"拉科夫",
+ "Rakow Czestochowa":"拉科夫","Slovan Bratislava":"布拉迪斯拉发","Zilina":"日利纳",
+ "Banik Ostrava":"俄斯特拉发","Ludogorets":"卢多戈雷茨","Levski Sofia":"索菲亚列夫斯基",
+ "CFR Cluj":"克卢日","FCSB":"布加勒斯特星","Universitatea Craiova":"克拉约瓦大学",
+ "Maccabi Tel Aviv":"特拉维夫马卡比","Hapoel Beer Sheva":"贝尔谢巴夏普尔",
+ "Ferencvarosi TC":"费伦茨瓦罗斯","Puskas Akademia":"普斯卡什学院",
+ "Dinamo Minsk":"明斯克迪纳摩","BATE Borisov":"鲍里索夫巴特",
+ "Zalgiris":"日尔吉里斯","Riga FC":"里加FC","RFS":"里加RFS","Levadia Tallinn":"塔林征服者",
+ "Flora Tallinn":"塔林弗罗拉","Malmo":"马尔默","Lincoln Red Imps":"林肯红魔",
+ "Hamrun Spartans":"哈姆鲁恩","Floriana":"弗洛里亚纳","Breidablik":"布雷达布利克",
+ "Valur":"瓦鲁尔","KI Klaksvik":"克拉克斯维克","Vikingur Gota":"哥塔维京",
+ "Milsami":"米尔萨米","Sheriff Tiraspol":"蒂拉斯波尔警长","Petrocub":"佩特罗库布",
+ "Dinamo Tbilisi":"第比利斯迪纳摩","Iberia 1999":"伊比利亚","Astana":"阿斯塔纳",
+ "Kairat":"阿拉木图凯拉特","Ludogorets Razgrad":"卢多戈雷茨",
+ "Partizan":"贝尔格莱德游击","Vojvodina":"伏伊伏丁那","Hajduk Split":"哈伊杜克",
+ "Rijeka":"里耶卡","Olimpija Ljubljana":"卢布尔雅那","Celje":"采列",
+ "Zrinjski":"兹林斯基","Borac Banja Luka":"巴尼亚卢卡","Struga":"斯特鲁加",
+ "Shkendija":"申迪亚","Egnatia":"埃格纳蒂亚","Ballkani":"巴尔卡尼","Drita":"德里塔",
+ "Rapid Wien":"维也纳快速","LASK":"林茨","Basel":"巴塞尔","FC Basel":"巴塞尔",
+ "Servette":"塞尔维特","Lugano":"卢加诺","Zurich":"苏黎世",
+ "Panevezys":"帕内韦日斯","Noah":"诺亚","Pyunik":"皮尤尼克","Araz":"阿拉兹"
 };
 /* 归一化:去掉 FC/CF/AFC/SC 等常见前后缀,提高命中率 */
 function _norm(n){
@@ -1028,13 +1056,14 @@ const LG_ZH={
  soccer_spain_la_liga:'西甲',
  soccer_italy_serie_a:'意甲',
  soccer_uefa_champs_league:'欧洲冠军联赛',
+ soccer_uefa_champs_league_qualification:'欧冠资格赛',
  soccer_japan_j_league:'日职联',
  soccer_korea_kleague1:'韩K联',
  soccer_sweden_allsvenskan:'瑞典超'
 };
 const LG_ORDER=['soccer_fifa_world_cup','soccer_epl','soccer_germany_bundesliga','soccer_spain_la_liga',
-  'soccer_italy_serie_a','soccer_uefa_champs_league','soccer_japan_j_league','soccer_korea_kleague1',
-  'soccer_sweden_allsvenskan'];
+  'soccer_italy_serie_a','soccer_uefa_champs_league','soccer_uefa_champs_league_qualification',
+  'soccer_japan_j_league','soccer_korea_kleague1','soccer_sweden_allsvenskan'];
 /* 兜底:英文标题里的关键词 → 中文 */
 function lgZh(key,title){
   if(LG_ZH[key]) return LG_ZH[key];
