@@ -898,85 +898,100 @@ const COUNTRY_ZH={
   "New Zealand":"新西兰","New Caledonia":"新喀里多尼亚","Tahiti":"塔希提","Fiji":"斐济",
   "Solomon Islands":"所罗门群岛","Vanuatu":"瓦努阿图","Papua New Guinea":"巴布亚新几内亚"
 };
-/* ---------- 俱乐部中文名(The Odds API 的英文写法) ---------- */
+/* ---------- 俱乐部中文名(竞彩常用译名;仅覆盖启用的 8 项赛事) ---------- */
 const CLUB_ZH={
- /* 英超 */
- "Arsenal":"阿森纳","Aston Villa":"阿斯顿维拉","Bournemouth":"伯恩茅斯","Brentford":"布伦特福德",
- "Brighton and Hove Albion":"布莱顿","Brighton & Hove Albion":"布莱顿","Burnley":"伯恩利",
- "Chelsea":"切尔西","Crystal Palace":"水晶宫","Everton":"埃弗顿","Fulham":"富勒姆",
+ /* ===== 英超 ===== */
+ "Arsenal":"阿森纳","Aston Villa":"阿斯顿维拉","Bournemouth":"伯恩茅斯","AFC Bournemouth":"伯恩茅斯",
+ "Brentford":"布伦特福德","Brighton and Hove Albion":"布莱顿","Brighton & Hove Albion":"布莱顿",
+ "Burnley":"伯恩利","Chelsea":"切尔西","Crystal Palace":"水晶宫","Everton":"埃弗顿","Fulham":"富勒姆",
  "Leeds United":"利兹联","Liverpool":"利物浦","Manchester City":"曼城","Manchester United":"曼联",
- "Newcastle United":"纽卡斯尔","Nottingham Forest":"诺丁汉森林","Sunderland":"桑德兰",
- "Tottenham Hotspur":"热刺","West Ham United":"西汉姆联","Wolverhampton Wanderers":"狼队",
- "Leicester City":"莱斯特城","Ipswich Town":"伊普斯维奇","Southampton":"南安普顿",
- "Sheffield United":"谢菲联","Luton Town":"卢顿","Norwich City":"诺维奇","Watford":"沃特福德",
+ "Newcastle United":"纽卡斯尔联","Nottingham Forest":"诺丁汉森林","Sunderland":"桑德兰",
+ "Tottenham Hotspur":"托特纳姆热刺","West Ham United":"西汉姆联","Wolverhampton Wanderers":"狼队",
+ /* 英超常见升降级队(赛季轮换时会出现) */
+ "Leicester City":"莱斯特城","Southampton":"南安普顿","Ipswich Town":"伊普斯维奇",
+ "Sheffield United":"谢菲尔德联","Luton Town":"卢顿","Norwich City":"诺维奇","Watford":"沃特福德",
  "West Bromwich Albion":"西布罗姆维奇","Middlesbrough":"米德尔斯堡","Coventry City":"考文垂",
- "Stoke City":"斯托克城","Millwall":"米尔沃尔","Swansea City":"斯旺西","Cardiff City":"卡迪夫城",
- "Hull City":"赫尔城","Preston North End":"普雷斯顿","Bristol City":"布里斯托尔城",
- "Queens Park Rangers":"女王公园巡游者","Blackburn Rovers":"布莱克本","Derby County":"德比郡",
- "Sheffield Wednesday":"谢周三","Portsmouth":"朴茨茅斯","Oxford United":"牛津联","Plymouth Argyle":"普利茅斯",
- /* 西甲 */
+
+ /* ===== 德甲 ===== */
+ "Bayern Munich":"拜仁慕尼黑","FC Bayern Munich":"拜仁慕尼黑","Borussia Dortmund":"多特蒙德",
+ "Bayer Leverkusen":"勒沃库森","RB Leipzig":"RB莱比锡","Eintracht Frankfurt":"法兰克福",
+ "VfB Stuttgart":"斯图加特","SC Freiburg":"弗赖堡","VfL Wolfsburg":"沃尔夫斯堡",
+ "Werder Bremen":"云达不莱梅","SV Werder Bremen":"云达不莱梅",
+ "Borussia Monchengladbach":"门兴格拉德巴赫","Borussia Mönchengladbach":"门兴格拉德巴赫",
+ "TSG Hoffenheim":"霍芬海姆","1899 Hoffenheim":"霍芬海姆","FC Augsburg":"奥格斯堡",
+ "Union Berlin":"柏林联合","1. FC Union Berlin":"柏林联合","FSV Mainz 05":"美因茨","Mainz":"美因茨",
+ "FC St. Pauli":"圣保利","St. Pauli":"圣保利","1. FC Heidenheim":"海登海姆","Heidenheim":"海登海姆",
+ "Hamburger SV":"汉堡","FC Koln":"科隆","1. FC Koln":"科隆","1. FC Köln":"科隆",
+ "VfL Bochum":"波鸿","Holstein Kiel":"荷尔斯泰因基尔",
+
+ /* ===== 西甲 ===== */
  "Real Madrid":"皇家马德里","Barcelona":"巴塞罗那","Atletico Madrid":"马德里竞技",
- "Athletic Bilbao":"毕尔巴鄂竞技","Real Sociedad":"皇家社会","Real Betis":"皇家贝蒂斯",
- "Villarreal":"比利亚雷亚尔","Valencia":"瓦伦西亚","Sevilla":"塞维利亚","Girona":"赫罗纳",
- "Celta Vigo":"塞尔塔","Osasuna":"奥萨苏纳","Rayo Vallecano":"巴列卡诺","Mallorca":"马洛卡",
- "Getafe":"赫塔菲","Espanyol":"西班牙人","Alaves":"阿拉维斯","Deportivo Alaves":"阿拉维斯",
- "Real Valladolid":"巴利亚多利德","Las Palmas":"拉斯帕尔马斯","Leganes":"莱加内斯",
- "Levante":"莱万特","Elche":"埃尔切","Real Oviedo":"奥维耶多","Cadiz":"加的斯","Granada":"格拉纳达",
- /* 意甲 */
+ "Athletic Bilbao":"毕尔巴鄂竞技","Villarreal":"比利亚雷亚尔","Real Betis":"皇家贝蒂斯",
+ "Real Sociedad":"皇家社会","Sevilla":"塞维利亚","Valencia":"瓦伦西亚","Celta Vigo":"塞尔塔",
+ "Rayo Vallecano":"巴列卡诺","Osasuna":"奥萨苏纳","Mallorca":"马洛卡","Getafe":"赫塔菲",
+ "Espanyol":"西班牙人","Alaves":"阿拉维斯","Deportivo Alaves":"阿拉维斯","Girona":"赫罗纳",
+ "Elche":"埃尔切","Levante":"莱万特","Real Oviedo":"皇家奥维耶多","Real Valladolid":"巴利亚多利德",
+ "Las Palmas":"拉斯帕尔马斯","Leganes":"莱加内斯",
+
+ /* ===== 意甲 ===== */
  "Inter Milan":"国际米兰","AC Milan":"AC米兰","Juventus":"尤文图斯","Napoli":"那不勒斯",
  "AS Roma":"罗马","Roma":"罗马","Lazio":"拉齐奥","Atalanta BC":"亚特兰大","Atalanta":"亚特兰大",
  "Fiorentina":"佛罗伦萨","Bologna":"博洛尼亚","Torino":"都灵","Udinese":"乌迪内斯",
  "Genoa":"热那亚","Cagliari":"卡利亚里","Hellas Verona":"维罗纳","Verona":"维罗纳",
- "Lecce":"莱切","Parma":"帕尔马","Como":"科莫","Empoli":"恩波利","Monza":"蒙扎",
- "Venezia":"威尼斯","Sassuolo":"萨索洛","Pisa":"比萨","Cremonese":"克雷莫纳","Salernitana":"萨勒尼塔纳",
- /* 德甲 */
- "Bayern Munich":"拜仁慕尼黑","Borussia Dortmund":"多特蒙德","Bayer Leverkusen":"勒沃库森",
- "RB Leipzig":"莱比锡红牛","Eintracht Frankfurt":"法兰克福","VfB Stuttgart":"斯图加特",
- "SC Freiburg":"弗赖堡","VfL Wolfsburg":"沃尔夫斯堡","Werder Bremen":"云达不莱梅",
- "Borussia Monchengladbach":"门兴格拉德巴赫","1899 Hoffenheim":"霍芬海姆","TSG Hoffenheim":"霍芬海姆",
- "FC Augsburg":"奥格斯堡","Union Berlin":"柏林联合","1. FC Union Berlin":"柏林联合",
- "FSV Mainz 05":"美因茨","Mainz":"美因茨","FC St. Pauli":"圣保利","St. Pauli":"圣保利",
- "1. FC Heidenheim":"海登海姆","Heidenheim":"海登海姆","Holstein Kiel":"荷尔斯泰因基尔",
- "VfL Bochum":"波鸿","FC Koln":"科隆","1. FC Koln":"科隆","Hamburger SV":"汉堡",
- "Hertha Berlin":"柏林赫塔","Schalke 04":"沙尔克04","Fortuna Dusseldorf":"杜塞尔多夫",
- /* 法甲 */
+ "Lecce":"莱切","Parma":"帕尔马","Como":"科莫","Sassuolo":"萨索洛","Pisa":"比萨",
+ "Cremonese":"克雷莫纳","Empoli":"恩波利","Monza":"蒙扎","Venezia":"威尼斯","Salernitana":"萨勒尼塔纳",
+
+ /* ===== 欧冠(除上述四大联赛外的常见参赛队) ===== */
  "Paris Saint Germain":"巴黎圣日耳曼","Paris Saint-Germain":"巴黎圣日耳曼","PSG":"巴黎圣日耳曼",
  "Marseille":"马赛","Olympique Marseille":"马赛","AS Monaco":"摩纳哥","Monaco":"摩纳哥",
  "Lille":"里尔","LOSC Lille":"里尔","Olympique Lyonnais":"里昂","Lyon":"里昂",
- "OGC Nice":"尼斯","Nice":"尼斯","RC Lens":"朗斯","Lens":"朗斯","Stade Rennais":"雷恩","Rennes":"雷恩",
- "Stade Brestois":"布雷斯特","Brest":"布雷斯特","Toulouse":"图卢兹","Strasbourg":"斯特拉斯堡",
- "RC Strasbourg":"斯特拉斯堡","Nantes":"南特","Montpellier":"蒙彼利埃","Auxerre":"欧塞尔",
- "Angers":"昂热","Le Havre":"勒阿弗尔","Reims":"兰斯","Saint-Etienne":"圣埃蒂安",
- "Paris FC":"巴黎FC","Metz":"梅斯","Lorient":"洛里昂",
- /* 荷甲 / 葡超 / 比甲 / 苏超 / 土超 */
  "Ajax":"阿贾克斯","AFC Ajax":"阿贾克斯","PSV Eindhoven":"埃因霍温","PSV":"埃因霍温",
- "Feyenoord":"费耶诺德","AZ Alkmaar":"阿尔克马尔","FC Twente":"特温特","FC Utrecht":"乌得勒支",
- "Benfica":"本菲卡","SL Benfica":"本菲卡","FC Porto":"波尔图","Porto":"波尔图",
- "Sporting CP":"里斯本竞技","Sporting Lisbon":"里斯本竞技","SC Braga":"布拉加","Braga":"布拉加",
- "Club Brugge":"布鲁日","Anderlecht":"安德莱赫特","Genk":"亨克","Royal Antwerp":"安特卫普",
- "Celtic":"凯尔特人","Rangers":"流浪者","Galatasaray":"加拉塔萨雷","Fenerbahce":"费内巴切",
- "Besiktas":"贝西克塔斯","Trabzonspor":"特拉布宗",
- /* 中超 */
- "Shanghai Port":"上海海港","Shanghai Shenhua":"上海申花","Beijing Guoan":"北京国安",
- "Shandong Taishan":"山东泰山","Chengdu Rongcheng":"成都蓉城","Zhejiang":"浙江队",
- "Shenzhen Peng City":"深圳新鹏城","Wuhan Three Towns":"武汉三镇","Tianjin Jinmen Tiger":"天津津门虎",
- "Henan":"河南队","Changchun Yatai":"长春亚泰","Meizhou Hakka":"梅州客家",
- "Qingdao Hainiu":"青岛海牛","Qingdao West Coast":"青岛西海岸","Dalian Yingbo":"大连英博",
- "Yunnan Yukun":"云南玉昆","Shanghai":"上海队",
- /* 日职 / 韩K / 澳超 */
- "Kawasaki Frontale":"川崎前锋","Yokohama F Marinos":"横滨水手","Vissel Kobe":"神户胜利船",
- "Urawa Red Diamonds":"浦和红钻","Kashima Antlers":"鹿岛鹿角","FC Tokyo":"东京FC",
- "Gamba Osaka":"大阪钢巴","Cerezo Osaka":"大阪樱花","Sanfrecce Hiroshima":"广岛三箭",
- "Nagoya Grampus":"名古屋鲸鱼","Kashiwa Reysol":"柏太阳神","Machida Zelvia":"町田泽维亚",
- "Ulsan Hyundai":"蔚山现代","Jeonbuk Motors":"全北现代","FC Seoul":"首尔FC",
- "Pohang Steelers":"浦项制铁","Melbourne Victory":"墨尔本胜利","Sydney FC":"悉尼FC",
- /* 美职联 / 巴甲 / 阿甲(常见) */
- "Inter Miami CF":"迈阿密国际","Inter Miami":"迈阿密国际","LA Galaxy":"洛杉矶银河",
- "Los Angeles FC":"洛杉矶FC","Seattle Sounders FC":"西雅图海湾人","New York City FC":"纽约城",
- "Flamengo":"弗拉门戈","Palmeiras":"帕尔梅拉斯","Corinthians":"科林蒂安","Sao Paulo":"圣保罗",
- "Santos":"桑托斯","Gremio":"格雷米奥","Internacional":"国际体育会","Botafogo":"博塔弗戈",
- "Fluminense":"弗鲁米嫩塞","Vasco da Gama":"瓦斯科","Cruzeiro":"克鲁塞罗","Atletico Mineiro":"米内罗竞技",
- "Boca Juniors":"博卡青年","River Plate":"河床","Racing Club":"竞技俱乐部","Independiente":"独立队"
+ "Feyenoord":"费耶诺德","Benfica":"本菲卡","SL Benfica":"本菲卡","FC Porto":"波尔图","Porto":"波尔图",
+ "Sporting CP":"里斯本竞技","Sporting Lisbon":"里斯本竞技","Club Brugge":"布鲁日",
+ "Union Saint-Gilloise":"圣吉罗斯联","Royale Union Saint-Gilloise":"圣吉罗斯联",
+ "Celtic":"凯尔特人","Rangers":"格拉斯哥流浪者","Galatasaray":"加拉塔萨雷","Fenerbahce":"费内巴切",
+ "Slavia Prague":"布拉格斯拉维亚","Sparta Prague":"布拉格斯巴达","Viktoria Plzen":"比尔森胜利",
+ "Shakhtar Donetsk":"顿涅茨克矿工","Dynamo Kyiv":"基辅迪纳摩",
+ "Red Bull Salzburg":"萨尔茨堡红牛","RB Salzburg":"萨尔茨堡红牛","Sturm Graz":"格拉茨风暴",
+ "Young Boys":"伯尔尼年轻人","BSC Young Boys":"伯尔尼年轻人",
+ "FC Copenhagen":"哥本哈根","Copenhagen":"哥本哈根","Bodo/Glimt":"博多闪耀","Bodo Glimt":"博多闪耀",
+ "Olympiacos":"奥林匹亚科斯","PAOK":"塞萨洛尼基","Panathinaikos":"帕纳辛纳科斯",
+ "Crvena Zvezda":"贝尔格莱德红星","Red Star Belgrade":"贝尔格莱德红星",
+ "Dinamo Zagreb":"萨格勒布迪纳摩","Qarabag":"卡拉巴赫","Ferencvaros":"费伦茨瓦罗斯",
+ "Slovan Bratislava":"布拉迪斯拉发","Sporting Braga":"布拉加","SC Braga":"布拉加",
+ "Bruges":"布鲁日","Royal Antwerp":"安特卫普","Anderlecht":"安德莱赫特","Genk":"亨克",
+ "Pafos":"帕福斯","Kairat Almaty":"阿拉木图凯拉特","Bayern München":"拜仁慕尼黑",
+
+ /* ===== 日职联(J1) ===== */
+ "Kashima Antlers":"鹿岛鹿角","Urawa Red Diamonds":"浦和红钻","Urawa Reds":"浦和红钻",
+ "Kashiwa Reysol":"柏太阳神","FC Tokyo":"东京FC","Tokyo Verdy":"东京绿茵",
+ "Kawasaki Frontale":"川崎前锋","Yokohama F Marinos":"横滨水手","Yokohama F. Marinos":"横滨水手",
+ "Yokohama FC":"横滨FC","Shonan Bellmare":"湘南海洋","Shimizu S-Pulse":"清水心跳",
+ "Nagoya Grampus":"名古屋鲸八","Kyoto Sanga":"京都不死鸟","Gamba Osaka":"大阪钢巴",
+ "Cerezo Osaka":"大阪樱花","Vissel Kobe":"神户胜利船","Sanfrecce Hiroshima":"广岛三箭",
+ "Avispa Fukuoka":"福冈黄蜂","FC Machida Zelvia":"町田泽维亚","Machida Zelvia":"町田泽维亚",
+ "Albirex Niigata":"新泻天鹅","Fagiano Okayama":"冈山绿雉","Consadole Sapporo":"札幌冈萨多",
+ "Hokkaido Consadole Sapporo":"札幌冈萨多","Jubilo Iwata":"磐田喜悦","Vegalta Sendai":"仙台维加泰",
+ "Sagan Tosu":"鸟栖沙岩","V-Varen Nagasaki":"长崎成功丸","Shimizu SPulse":"清水心跳",
+
+ /* ===== 韩K联(K League 1) ===== */
+ "Ulsan HD FC":"蔚山HD","Ulsan HD":"蔚山HD","Ulsan Hyundai":"蔚山现代",
+ "Jeonbuk Hyundai Motors":"全北现代","Jeonbuk Motors":"全北现代","Pohang Steelers":"浦项制铁",
+ "FC Seoul":"首尔FC","Gimcheon Sangmu":"金泉尚武","Gimcheon Sangmu FC":"金泉尚武",
+ "Daejeon Hana Citizen":"大田市民","Gangwon FC":"江原FC","Gwangju FC":"光州FC",
+ "Jeju SK FC":"济州SK","Jeju United":"济州联","Suwon FC":"水原FC","Daegu FC":"大邱FC",
+ "FC Anyang":"安养FC","Incheon United":"仁川联","Seongnam FC":"城南FC",
+
+ /* ===== 瑞典超(Allsvenskan) ===== */
+ "Malmo FF":"马尔默","Malmö FF":"马尔默","AIK":"索尔纳AIK","AIK Stockholm":"索尔纳AIK",
+ "Djurgardens IF":"尤尔加登","Djurgården":"尤尔加登","Hammarby":"哈马比","Hammarby IF":"哈马比",
+ "IFK Goteborg":"哥德堡","IFK Göteborg":"哥德堡","IF Elfsborg":"埃尔夫斯堡","Elfsborg":"埃尔夫斯堡",
+ "BK Hacken":"赫根","BK Häcken":"赫根","IFK Norrkoping":"诺尔雪平","IFK Norrköping":"诺尔雪平",
+ "Mjallby AIF":"米亚尔比","Mjällby AIF":"米亚尔比","Halmstads BK":"哈尔姆斯塔德",
+ "IK Sirius":"天狼星","GAIS":"哥德堡GAIS","Degerfors IF":"德格福斯",
+ "IF Brommapojkarna":"布罗马","Brommapojkarna":"布罗马","IFK Varnamo":"韦纳穆","IFK Värnamo":"韦纳穆",
+ "Osters IF":"厄斯特","Östers IF":"厄斯特","Orgryte IS":"厄格里特","Helsingborg":"赫尔辛堡",
+ "Varbergs BoIS":"瓦尔贝里","Kalmar FF":"卡尔马","AFC Eskilstuna":"埃斯基尔斯蒂纳"
 };
 /* 归一化:去掉 FC/CF/AFC/SC 等常见前后缀,提高命中率 */
 function _norm(n){
@@ -1005,37 +1020,21 @@ try{ const k=localStorage.getItem(KEYSTORE); if(k)document.getElementById('apiKe
 const LGKEY='wc_leagues_v1', MATCHKEY='wc_api_matches_v1';
 
 /* 联赛中文名(按 sport key 精确匹配) */
+/* 只启用这几项赛事(其余不在选择列表里出现) */
 const LG_ZH={
- soccer_fifa_world_cup:'国际足联世界杯', soccer_fifa_world_cup_qualifiers_europe:'世预赛·欧洲区',
- soccer_fifa_world_cup_qualifiers_south_america:'世预赛·南美区', soccer_fifa_world_cup_winner:'世界杯冠军',
- soccer_fifa_world_cup_womens:'女足世界杯', soccer_uefa_european_championship:'欧洲杯',
- soccer_uefa_euro_qualification:'欧洲杯预选赛', soccer_uefa_nations_league:'欧洲国家联赛',
- soccer_uefa_champs_league:'欧洲冠军联赛', soccer_uefa_champs_league_qualification:'欧冠资格赛',
- soccer_uefa_champs_league_women:'女足欧冠', soccer_uefa_europa_league:'欧罗巴联赛',
- soccer_uefa_europa_conference_league:'欧会联赛', soccer_conmebol_copa_america:'美洲杯',
- soccer_conmebol_copa_libertadores:'南美解放者杯', soccer_conmebol_copa_sudamericana:'南美球会杯',
- soccer_africa_cup_of_nations:'非洲国家杯', soccer_fifa_club_world_cup:'世俱杯',
- soccer_epl:'英超', soccer_efl_champ:'英冠', soccer_england_league1:'英甲',
- soccer_england_league2:'英乙', soccer_england_efl_cup:'英联杯', soccer_fa_cup:'英格兰足总杯',
- soccer_spain_la_liga:'西甲', soccer_spain_segunda_division:'西乙', soccer_spain_copa_del_rey:'西班牙国王杯',
- soccer_italy_serie_a:'意甲', soccer_italy_serie_b:'意乙',
- soccer_germany_bundesliga:'德甲', soccer_germany_bundesliga2:'德乙', soccer_germany_liga3:'德丙',
- soccer_france_ligue_one:'法甲', soccer_france_ligue_two:'法乙',
- soccer_netherlands_eredivisie:'荷甲', soccer_portugal_primeira_liga:'葡超',
- soccer_belgium_first_div:'比甲', soccer_turkey_super_league:'土超',
- soccer_greece_super_league:'希腊超', soccer_switzerland_superleague:'瑞士超',
- soccer_austria_bundesliga:'奥地利甲', soccer_denmark_superliga:'丹麦超',
- soccer_norway_eliteserien:'挪超', soccer_sweden_allsvenskan:'瑞典超',
- soccer_sweden_superettan:'瑞典甲', soccer_finland_veikkausliiga:'芬超',
- soccer_poland_ekstraklasa:'波兰甲', soccer_russia_premier_league:'俄超',
- soccer_scotland_premiership:'苏超', soccer_ireland_premier_division:'爱尔兰超',
- soccer_league_of_ireland:'爱尔兰联赛',
- soccer_china_superleague:'中超', soccer_japan_j_league:'日职联', soccer_korea_kleague1:'韩K联',
- soccer_australia_aleague:'澳超', soccer_usa_mls:'美职联', soccer_mexico_ligamx:'墨西哥超',
- soccer_brazil_campeonato:'巴西甲', soccer_brazil_serie_b:'巴西乙',
- soccer_argentina_primera_division:'阿根廷甲', soccer_chile_campeonato:'智利甲',
- soccer_spl:'新加坡超', soccer_league_of_thailand:'泰超'
+ soccer_fifa_world_cup:'国际足联世界杯',
+ soccer_epl:'英超',
+ soccer_germany_bundesliga:'德甲',
+ soccer_spain_la_liga:'西甲',
+ soccer_italy_serie_a:'意甲',
+ soccer_uefa_champs_league:'欧洲冠军联赛',
+ soccer_japan_j_league:'日职联',
+ soccer_korea_kleague1:'韩K联',
+ soccer_sweden_allsvenskan:'瑞典超'
 };
+const LG_ORDER=['soccer_fifa_world_cup','soccer_epl','soccer_germany_bundesliga','soccer_spain_la_liga',
+  'soccer_italy_serie_a','soccer_uefa_champs_league','soccer_japan_j_league','soccer_korea_kleague1',
+  'soccer_sweden_allsvenskan'];
 /* 兜底:英文标题里的关键词 → 中文 */
 function lgZh(key,title){
   if(LG_ZH[key]) return LG_ZH[key];
@@ -1046,7 +1045,8 @@ function lgZh(key,title){
   for(const r of RULE){ if(r[0].test(t)) return t+'('+r[1]+')'; }
   return t;
 }
-function getLeagues(){ try{ const a=JSON.parse(localStorage.getItem(LGKEY)); if(Array.isArray(a)&&a.length) return a; }catch(e){}
+function getLeagues(){ try{ const a=JSON.parse(localStorage.getItem(LGKEY));
+    if(Array.isArray(a)){ const f=a.filter(function(k){ return LG_ZH[k]; }); if(f.length) return f; } }catch(e){}
   return ['soccer_fifa_world_cup']; }
 function loadMatches(){ try{ return JSON.parse(localStorage.getItem(MATCHKEY))||{}; }catch(e){ return {}; } }
 function saveMatches(m){ try{ localStorage.setItem(MATCHKEY,JSON.stringify(m)); }catch(e){} }
@@ -1076,29 +1076,23 @@ async function openLeagues(){
   if(!key){ openKeyModal('先填入 API key,才能查询可用联赛列表(该查询免费)。'); return; }
   const m=document.getElementById('lgModal'); m.style.display='flex';
   const list=document.getElementById('lgList'); list.innerHTML='<div style="font-size:13px;color:var(--ink-faint)">加载联赛列表…</div>';
+  const sel=getLeagues();
+  let active=null;   // null = 没查到在售状态
   try{
     const r=await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${encodeURIComponent(key)}`);
     if(!r.ok){ let d=''; try{d=(await r.json()).message||'';}catch(e){}
-      if(isQuotaErr(r.status,d)){ closeLgModal(); openKeyModal('⚠ key 无效或额度异常('+r.status+')。请换新 key。'); return; }
-      list.innerHTML='<div style="font-size:13px;color:var(--warn)">查询失败 ('+r.status+')</div>'; return; }
-    const data=await r.json();
-    const soccer=data.filter(function(s){ return /^soccer_/.test(s.key) && s.active!==false; });
-    const sel=getLeagues();
-    if(!soccer.length){ list.innerHTML='<div style="font-size:13px;color:var(--ink-faint)">没有可用的足球联赛</div>'; return; }
-    /* 排序:已选 > 有中文名(常见联赛) > 其余 */
-    soccer.sort(function(a,b){
-      const sa=(sel.indexOf(a.key)>=0?0:1), sb=(sel.indexOf(b.key)>=0?0:1); if(sa!==sb) return sa-sb;
-      const ka=(LG_ZH[a.key]?0:1), kb=(LG_ZH[b.key]?0:1); if(ka!==kb) return ka-kb;
-      return a.key.localeCompare(b.key);
-    });
-    list.innerHTML=soccer.map(function(s){
-      const cn=lgZh(s.key,s.title), known=!!LG_ZH[s.key];
-      return '<label style="display:flex;gap:8px;align-items:center;padding:5px 0;font-size:13px;cursor:pointer">'
-        +'<input type="checkbox" class="lgcb" value="'+s.key+'"'+(sel.indexOf(s.key)>=0?' checked':'')+'>'
-        +'<span'+(known?'':' style="color:var(--ink-faint)"')+'>'+cn
-        +'<small style="color:var(--ink-faint)"> · '+s.title+'</small></span></label>';
-    }).join('');
-  }catch(e){ list.innerHTML='<div style="font-size:13px;color:var(--warn)">查询失败(网络或 CORS)</div>'; }
+      if(isQuotaErr(r.status,d)){ closeLgModal(); openKeyModal('⚠ key 无效或额度异常('+r.status+')。请换新 key。'); return; } }
+    else { const data=await r.json(); active={};
+      data.forEach(function(s){ if(s.active!==false) active[s.key]=true; }); }
+  }catch(e){}
+  list.innerHTML=LG_ORDER.map(function(k){
+    const on=(active===null)||!!active[k];      // 查不到状态就当可用
+    return '<label style="display:flex;gap:8px;align-items:center;padding:6px 0;font-size:13px;cursor:pointer">'
+      +'<input type="checkbox" class="lgcb" value="'+k+'"'+(sel.indexOf(k)>=0?' checked':'')+'>'
+      +'<span>'+LG_ZH[k]
+      +(on?'':'<small style="color:var(--ink-faint)"> · 休赛期/暂无盘</small>')
+      +'</span></label>';
+  }).join('');
 }
 function closeLgModal(){ const m=document.getElementById('lgModal'); if(m)m.style.display='none'; }
 function saveLeagues(){
