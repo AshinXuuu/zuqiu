@@ -190,8 +190,9 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;flex-wrap:wrap">
         <h2 style="margin:0">赛程看板 · 北京时间 · 赛果 / 预测</h2>
         <span style="display:flex;gap:8px">
-          <button class="addbtn" onclick="openLeagues()">选择联赛</button>
-          <button class="addbtn" onclick="scheduleFetch()">拉取赔率 + 回填赛果</button>
+          <a class="addbtn" id="adminLink" href="/admin.html" style="display:none;text-decoration:none">管理后台</a>
+          <button class="addbtn" id="lgBtn" onclick="openLeagues()">选择联赛</button>
+          <button class="addbtn" id="fetchBtn" onclick="scheduleFetch()">拉取赔率 + 回填赛果</button>
         </span>
       </div>
       <p class="apimsg" id="fixMsg" style="margin:0 0 8px">左半=时间与对阵;右半=实际赛果 + 模型 TOP3 预测。点「拉取赔率」会同时拉赔率(用于预测、可点看概率)并回填近 3 天赛果。</p>
@@ -203,8 +204,8 @@
   <div id="lgModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;align-items:center;justify-content:center;padding:20px">
     <div style="background:#fff;border-radius:14px;padding:22px;max-width:460px;width:100%">
       <h3 style="margin:0 0 8px;font-size:15px;color:var(--ink)">选择联赛</h3>
-      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 10px;line-height:1.5">勾选要拉取的联赛,拉到的比赛会<b>直接并进赛程看板</b>(按北京日期归位)。<br>
-        <b>额度提醒</b>:查询联赛列表<b>免费</b>;但每个联赛每次拉赔率约耗 <b>3 个额度</b>(3 个盘口),回填赛果每联赛约 <b>2 个额度</b>。选得越多越费,建议只勾你真要看的。</p>
+      <p id="lgDesc" style="font-size:12px;color:var(--ink-soft);margin:0 0 10px;line-height:1.5">勾选要拉取的联赛,拉到的比赛会<b>直接并进赛程看板</b>(按北京日期归位)。<br>
+        <b>额度提醒</b>:每个联赛每次拉赔率约耗 <b>3 个额度</b>,回填赛果约 <b>2 个额度</b>。选得越多越费,建议只勾你真要看的。</p>
       <div id="lgList" style="max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:12px"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="mini" onclick="closeLgModal()">取消</button>
@@ -294,8 +295,10 @@
         }
       });
       const AM=window.API_MATCHES||{};
+      const SEL=(typeof getLeagues==='function')?getLeagues():null;   // 显示筛选:只画勾选的联赛
       Object.keys(AM).forEach(function(id){ const e=AM[id];
         if(!e||!e.commence||!e.home||!e.away) return;
+        if(SEL&&e.sk&&SEL.indexOf(e.sk)<0) return;
         if(typeof bjParts!=='function') return;
         const bp=bjParts(e.commence); if(!bp) return;
         const mu=e.home+' vs '+e.away;
@@ -718,6 +721,65 @@ function apiUrl(proxy,pathname,params,key){
   return 'https://api.the-odds-api.com/v4'+pathname+'?'+q;
 }
 
+/* ---------- 云端快照模式(登录站点):
+   管理员点「拉取」→ 服务器统一拉取并存快照;所有登录用户打开即读快照,
+   普通用户不能拉取,「选择联赛」只是本机显示筛选 ---------- */
+let ME=null;          // {email,admin}
+window.SNAP=null;     // 最新快照
+async function initAuthUI(){
+  try{ const r=await fetch('/auth/me'); if(r.ok) ME=await r.json(); }catch(e){}
+  const adm=document.getElementById('adminLink');
+  if(adm&&ME&&ME.admin) adm.style.display='';
+  const fbtn=document.getElementById('fetchBtn');
+  if(fbtn&&ME&&!ME.admin) fbtn.style.display='none';
+  loadSnapshot(true);
+}
+function snapTime(ts){ try{ return new Date(ts).toLocaleString('zh-CN',{hour12:false,month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
+function processSnapshot(snap){
+  window.SNAP=snap;
+  const all=snap.odds||[];
+  try{ localStorage.setItem(ODDSCACHE,JSON.stringify({ts:snap.ts,data:all})); }catch(e){}
+  buildOddsIndex(all);
+  storeApiMatches(all);
+  const nres=applyScores(snap.scores||[]);
+  if(window.renderFixtures) window.renderFixtures();
+  archiveSnapshot(all,function(){
+    if(window.renderFixtures) window.renderFixtures();
+    const tail=(snap.remaining!=null?'　剩余额度 '+snap.remaining:'')
+      +(snap.failed&&snap.failed.length?'　(失败:'+snap.failed.join(', ')+')':'');
+    setFetchMsg('数据更新于 '+snapTime(snap.ts)+' · '+all.length+' 场赔率 · 回填 '+nres+' 场赛果'
+      +(ME&&ME.admin?tail:' · 只读(由管理员更新)'),'ok');
+  });
+}
+async function loadSnapshot(silent){
+  try{
+    const r=await fetch('/auth/data/snapshot');
+    if(r.status===404){ if(!silent||true) setFetchMsg(ME&&ME.admin?'还没有云端数据,点「拉取赔率 + 回填赛果」生成。':'管理员还没拉取过数据,稍后再来看看。'); return; }
+    if(!r.ok) return;
+    processSnapshot(await r.json());
+  }catch(e){ if(!silent) setFetchMsg('读取云端数据失败','err'); }
+}
+async function refreshSnapshot(){
+  setFetchMsg('服务器拉取中…(共 '+getLeagues().length+' 个联赛)');
+  try{
+    const r=await fetch('/auth/data/refresh',{method:'POST',
+      headers:{'content-type':'application/json'},body:JSON.stringify({leagues:getLeagues()})});
+    const d=await r.json();
+    if(!r.ok){ setFetchMsg(d.message||'拉取失败','err'); return; }
+    processSnapshot(d);
+  }catch(e){ setFetchMsg('拉取失败:网络错误','err'); }
+}
+/* 把快照里的赛果并入本地结果库 */
+function applyScores(list){
+  const rs=loadRes(); let filled=0;
+  (list||[]).filter(function(e){return e.completed&&Array.isArray(e.scores)&&e.scores.length>=2;})
+    .forEach(function(ev){ const sm={}; ev.scores.forEach(function(s){ sm[s.name]=Number(s.score); });
+      if((ev.home_team in sm)&&(ev.away_team in sm)){
+        rs[rkey(zh(ev.home_team),zh(ev.away_team))]={home:zh(ev.home_team),hg:sm[ev.home_team],ag:sm[ev.away_team]}; filled++; } });
+  if(filled) saveRes(rs);
+  return filled;
+}
+
 /* ---------- 多联赛:联赛选择 + API 比赛并入看板 ---------- */
 const LGKEY='wc_leagues_v1', MATCHKEY='wc_api_matches_v1';
 
@@ -775,6 +837,20 @@ function bjParts(iso){
 }
 async function openLeagues(){
   const proxy=await useProxy();
+  /* 普通用户:只是选择要显示的赛事(本机筛选),不碰上游 */
+  if(proxy&&ME&&!ME.admin){
+    const m=document.getElementById('lgModal'); m.style.display='flex';
+    const d=document.getElementById('lgDesc');
+    if(d) d.innerHTML='勾选你想在看板上看到的赛事(只影响你自己的显示,不消耗额度)。数据由管理员统一更新。';
+    const sel=getLeagues(), have=(window.SNAP&&window.SNAP.leagues)||[];
+    document.getElementById('lgList').innerHTML=LG_ORDER.map(function(k){
+      return '<label style="display:flex;gap:8px;align-items:center;padding:6px 0;font-size:13px;cursor:pointer">'
+        +'<input type="checkbox" class="lgcb" value="'+k+'"'+(sel.indexOf(k)>=0?' checked':'')+'>'
+        +'<span>'+LG_ZH[k]+(have.indexOf(k)>=0?'':'<small style="color:var(--ink-faint)"> · 暂无数据</small>')
+        +'</span></label>';
+    }).join('');
+    return;
+  }
   const key=getKey();
   if(!proxy&&!key){ openKeyModal('先填入 API key,才能查询可用联赛列表(该查询免费)。'); return; }
   const m=document.getElementById('lgModal'); m.style.display='flex';
@@ -803,7 +879,9 @@ function saveLeagues(){
   if(!sel.length){ alert('至少选一个联赛'); return; }
   try{ localStorage.setItem(LGKEY,JSON.stringify(sel)); }catch(e){}
   closeLgModal();
-  setFetchMsg('已选 '+sel.length+' 个联赛(约耗 '+(sel.length*3)+' 额度/次)。点「拉取赔率 + 回填赛果」开始拉取。','ok');
+  if(window.renderFixtures) window.renderFixtures();
+  if(ME&&!ME.admin){ setFetchMsg('显示筛选已更新(共 '+sel.length+' 项)。','ok'); return; }
+  setFetchMsg('已选 '+sel.length+' 个联赛。点「拉取赔率 + 回填赛果」更新数据。','ok');
 }
 
 /* 拉取的比赛列表缓存一天,免重复拉取、可点击查阅 */
@@ -819,9 +897,13 @@ function buildOddsIndex(data){
 function loadFix(key){ const o=window.ODDS_INDEX&&window.ODDS_INDEX[key]; if(o) loadInto(o.ev,o.od); }
 function setFetchMsg(text,cls){ ['apiMsg','fixMsg'].forEach(id=>{const e=document.getElementById(id);
   if(e){ e.className='apimsg'+(cls?(' '+cls):''); e.textContent=text; }}); }
-/* 赛程卡上的「拉取赔率」:有代理或有 key 直接拉,否则弹框配置 */
+/* 赛程卡上的「拉取」:登录站点→管理员触发服务器统一拉取;本地直连→老流程 */
 async function scheduleFetch(){
-  if(await useProxy()){ fetchOdds(); return; }
+  if(await useProxy()){
+    if(ME&&ME.admin) refreshSnapshot();
+    else loadSnapshot(false);
+    return;
+  }
   if(getKey()){ fetchOdds(); } else { openKeyModal(); }
 }
 /* 额度用尽 / key 无效判定 */
@@ -1063,11 +1145,12 @@ function loadInto(ev,od){
 
 loadOddsCache(); // 读今日缓存→建赔率索引
 if(window.renderFixtures) window.renderFixtures();  // 渲染合并赛程板(赛果+预测)
-(async function(){ // 打开即自动回填赛果(有代理或有 key,且距上次>30分钟,省额度)
-  let last=0; try{last=+(localStorage.getItem('wc_arch_lastsync')||0);}catch(e){}
-  if(Date.now()-last<=30*60*1000) return;
+(async function(){
   const proxy=await useProxy();
-  if(proxy||getKey()) syncScores();
+  if(proxy){ initAuthUI(); return; }   // 登录站点:显示管理入口 + 自动读云端快照
+  // 本地直连模式:打开即自动回填赛果(有 key 且距上次>30分钟,省额度)
+  let last=0; try{last=+(localStorage.getItem('wc_arch_lastsync')||0);}catch(e){}
+  if(getKey() && Date.now()-last>30*60*1000) syncScores();
 })();
 // 不在首屏计算:比分概率卡默认隐藏,点赛程里的「看赔率›」才灌入并显示
 </script>

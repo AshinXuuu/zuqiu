@@ -1,5 +1,20 @@
 # 邮箱验证码登录 + 邀请白名单 部署说明
 
+> **v2 更新(云端快照 + key 池)**:数据改为服务器统一存储 —— 只有管理员能点
+> 「拉取」,拉到的赔率+赛果存成服务器上的 snapshot.json(仅保留最新一份,
+> 几十~几百 KB,不占内存);其他用户打开网站自动读这份快照,只读,
+> 「选择联赛」对他们只是本机显示筛选。管理后台新增 API key 池,可加多个 key,
+> 额度用尽自动切换。
+>
+> **v2 升级步骤(已部署过 v1 的话)**:
+> ```bash
+> cd ~/Desktop/世界杯/outputs
+> scp server/auth_server.js server/odds_proxy.js ubuntu@124.222.164.101:/opt/odds-proxy/
+> ssh ubuntu@124.222.164.101 "sudo systemctl restart auth-server odds-proxy"
+> ./deploy.sh "云端快照+key池"
+> ```
+> 首次会自动把 key.txt 迁移成 keys.json;之后在 /admin.html 里管理 key。
+
 组件:`auth_server.js`(127.0.0.1:8788)负责发验证码、会话、邀请名单;
 nginx 用 `auth_request` 把整站(含 /api 赔率代理)保护起来;
 `login.html` 登录页、`admin.html` 管理后台(邀请/移除邮箱、看剩余额度)。

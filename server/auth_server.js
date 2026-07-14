@@ -41,6 +41,9 @@ const net = require('net');
 const PORT = +(process.env.PORT || 8788);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const MOCK = process.env.SMTP_MOCK === '1';
+const PROXY_BASE = process.env.PROXY_BASE || 'http://127.0.0.1:8787';  // odds_proxy 地址
+const KEYS_FILE = process.env.KEYS_FILE || path.join(__dirname, 'keys.json');
+const KEYTXT_FILE = path.join(__dirname, 'key.txt');
 const SESSION_DAYS = 30;
 const CODE_TTL = 10 * 60e3;
 const RESEND_GAP = 60e3;
@@ -83,6 +86,59 @@ setInterval(function(){          // 定期清过期会话 + 落盘
 }, 60e3).unref();
 
 const codes = new Map();   // email -> {code, exp, tries, lastSent}
+
+/* ---------- 云端数据快照:管理员拉取,所有登录用户只读 ----------
+   snapshot.json 只保留最新一份(几十~几百 KB,存磁盘不占内存) */
+function httpGetJSON(url, cb){
+  const req = http.get(url, function(res){
+    let b=''; res.on('data', d=>b+=d);
+    res.on('end', function(){ let j=null; try{ j=JSON.parse(b); }catch(e){}
+      cb(null, res.statusCode, j, res.headers); });
+  });
+  req.on('error', function(e){ cb(e); });
+  req.setTimeout(20000, function(){ req.destroy(new Error('timeout')); });
+}
+function refreshSnapshot(leagues, by, cb){
+  const sks = (leagues||[]).filter(function(s){ return /^[a-z0-9_]{3,60}$/.test(s); }).slice(0,12);
+  if (!sks.length) return cb(new Error('没有选择联赛'));
+  const odds=[], scores=[], failed=[];
+  let remaining=null, i=0;
+  (function next(){
+    if (i >= sks.length){
+      const snap = { ts: Date.now(), by: by, leagues: sks, odds: odds, scores: scores,
+                     failed: failed, remaining: remaining };
+      saveJSON('snapshot.json', snap);
+      return cb(null, snap);
+    }
+    const sk = sks[i++];
+    httpGetJSON(PROXY_BASE+'/v4/sports/'+sk+'/odds/?regions=eu&markets=h2h,totals,spreads&oddsFormat=decimal',
+      function(err, st, data, hdr){
+        if (!err && st===200 && Array.isArray(data)){
+          data.forEach(function(ev){ ev._sk=sk; }); odds.push.apply(odds, data);
+          if (hdr && hdr['x-requests-remaining']!=null) remaining=hdr['x-requests-remaining'];
+        } else failed.push(sk);
+        httpGetJSON(PROXY_BASE+'/v4/sports/'+sk+'/scores/?daysFrom=3',
+          function(err2, st2, data2){
+            if (!err2 && st2===200 && Array.isArray(data2)){
+              data2.forEach(function(ev){ ev._sk=sk; }); scores.push.apply(scores, data2);
+            }
+            next();
+          });
+      });
+  })();
+}
+
+/* ---------- key 池(keys.json,供 odds_proxy 轮换) ---------- */
+function loadKeys(){
+  try{ const a=JSON.parse(fs.readFileSync(KEYS_FILE,'utf8'));
+    if(Array.isArray(a)) return a.map(String); }catch(e){}
+  /* 从旧的 key.txt 迁移 */
+  try{ const k=fs.readFileSync(KEYTXT_FILE,'utf8').trim();
+    if(k){ fs.writeFileSync(KEYS_FILE, JSON.stringify([k],null,2)); return [k]; } }catch(e){}
+  return [];
+}
+function saveKeys(a){ fs.writeFileSync(KEYS_FILE, JSON.stringify(a,null,2)); }
+function maskKey(k){ return k.length>8 ? k.slice(0,4)+'****'+k.slice(-4) : '****'; }
 
 /* ---------- 极简 SMTP 客户端(AUTH LOGIN) ---------- */
 function loadSmtp(){
@@ -224,6 +280,32 @@ const server = http.createServer(function(req, res){
     return json(res, 200, {ok:true}, {'set-cookie': cookieHeader('x', 0)});
   }
 
+  /* ---- 云端数据:登录用户读快照,管理员刷新 ---- */
+  if (p === '/auth/data/snapshot' && req.method === 'GET'){
+    const s = getSession(req);
+    if (!s) return json(res, 401, {ok:false, message:'未登录'});
+    const snap = loadJSON('snapshot.json', null);
+    if (!snap) return json(res, 404, {ok:false, message:'还没有数据,请等管理员拉取'});
+    return json(res, 200, snap);
+  }
+  if (p === '/auth/data/refresh' && req.method === 'POST'){
+    const s = getSession(req);
+    if (!s) return json(res, 401, {ok:false, message:'未登录'});
+    if (!isAdmin(s.email)) return json(res, 403, {ok:false, message:'只有管理员能拉取数据'});
+    return readBody(req, function(body){
+      let leagues = body && Array.isArray(body.leagues) ? body.leagues : null;
+      if (!leagues || !leagues.length){
+        const st = loadJSON('settings.json', null);
+        leagues = (st && st.leagues) || ['soccer_fifa_world_cup'];
+      }
+      saveJSON('settings.json', {leagues: leagues});
+      refreshSnapshot(leagues, s.email, function(err, snap){
+        if (err) return json(res, 502, {ok:false, message:'拉取失败:'+err.message});
+        json(res, 200, snap);
+      });
+    });
+  }
+
   /* ---- 管理员接口 ---- */
   if (p.startsWith('/auth/admin/')){
     const s = getSession(req);
@@ -232,6 +314,32 @@ const server = http.createServer(function(req, res){
 
     if (p === '/auth/admin/list' && req.method === 'GET')
       return json(res, 200, {ok:true, admins: wl.admins, users: wl.users});
+
+    /* key 池管理 */
+    if (p === '/auth/admin/keys' && req.method === 'GET'){
+      const ks = loadKeys();
+      return json(res, 200, {ok:true, keys: ks.map(function(k,i){ return {i:i, masked:maskKey(k)}; })});
+    }
+    if (p === '/auth/admin/keys/add' && req.method === 'POST'){
+      return readBody(req, function(body){
+        const k = String(body && body.key || '').trim();
+        if (!/^[a-z0-9]{16,64}$/i.test(k)) return json(res, 400, {ok:false, message:'key 格式不对'});
+        const ks = loadKeys();
+        if (ks.includes(k)) return json(res, 200, {ok:true, message:'已存在'});
+        ks.push(k); saveKeys(ks);
+        return json(res, 200, {ok:true, message:'已添加(共 '+ks.length+' 个)'});
+      });
+    }
+    if (p === '/auth/admin/keys/remove' && req.method === 'POST'){
+      return readBody(req, function(body){
+        const i = body && body.i;
+        const ks = loadKeys();
+        if (typeof i !== 'number' || i<0 || i>=ks.length) return json(res, 400, {ok:false, message:'序号不对'});
+        if (ks.length === 1) return json(res, 400, {ok:false, message:'至少保留 1 个 key'});
+        ks.splice(i,1); saveKeys(ks);
+        return json(res, 200, {ok:true, message:'已移除'});
+      });
+    }
 
     if (p === '/auth/admin/invite' && req.method === 'POST'){
       return readBody(req, function(body){

@@ -59,6 +59,17 @@
   </div>
 
   <div class="card">
+    <h2>The Odds API · Key 池</h2>
+    <div class="row">
+      <input id="newKey" type="text" placeholder="粘贴新的 API key(the-odds-api.com 注册获取)">
+      <button onclick="addKey()">添加</button>
+    </div>
+    <ul id="keys"></ul>
+    <p class="msg" id="kmsg"></p>
+    <p style="font-size:11.5px;color:var(--ink-faint);margin:8px 0 0">可以放多个 key,某个额度用尽时服务器自动切到下一个。</p>
+  </div>
+
+  <div class="card">
     <h2>邀请邮箱(受邀者才能验证码登录)</h2>
     <div class="row">
       <input id="inv" type="email" placeholder="要邀请的邮箱">
@@ -122,8 +133,34 @@ async function logout(){
   await fetch('/auth/logout',{method:'POST'}).catch(()=>{});
   location.replace('/login.html');
 }
+/* ---- key 池 ---- */
+function setKmsg(t,cls){ const m=document.getElementById('kmsg'); m.textContent=t||''; m.className='msg'+(cls?(' '+cls):''); }
+async function refreshKeys(){
+  const r=await fetch('/auth/admin/keys');
+  if(!r.ok) return;
+  const d=await r.json();
+  const ul=document.getElementById('keys'); ul.innerHTML='';
+  if(!d.keys.length){ ul.innerHTML='<li><span style="color:var(--ink-faint)">还没有 key,添加一个才能拉取数据</span></li>'; return; }
+  d.keys.forEach(k=>{ const li=document.createElement('li');
+    li.innerHTML='<span style="font-family:ui-monospace,monospace">'+esc(k.masked)+'</span>';
+    const b=document.createElement('button'); b.className='rm'; b.textContent='移除';
+    b.onclick=async ()=>{ if(!confirm('移除这个 key?')) return;
+      const r2=await fetch('/auth/admin/keys/remove',{method:'POST',
+        headers:{'content-type':'application/json'},body:JSON.stringify({i:k.i})});
+      const d2=await r2.json(); setKmsg(d2.message||'', r2.ok?'ok':'err'); refreshKeys(); };
+    li.appendChild(b); ul.appendChild(li); });
+}
+async function addKey(){
+  const key=document.getElementById('newKey').value.trim();
+  if(!key){ setKmsg('先粘贴 key','err'); return; }
+  const r=await fetch('/auth/admin/keys/add',{method:'POST',
+    headers:{'content-type':'application/json'},body:JSON.stringify({key})});
+  const d=await r.json(); setKmsg(d.message||'', r.ok?'ok':'err');
+  if(r.ok){ document.getElementById('newKey').value=''; refreshKeys(); }
+}
+document.getElementById('newKey').addEventListener('keydown',e=>{ if(e.key==='Enter') addKey(); });
 document.getElementById('inv').addEventListener('keydown',e=>{ if(e.key==='Enter') invite(); });
-guard().then(ok=>{ if(ok){ refresh(); quota(); } });
+guard().then(ok=>{ if(ok){ refresh(); quota(); refreshKeys(); } });
 </script>
 </body>
 </html>
