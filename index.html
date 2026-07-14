@@ -727,11 +727,17 @@ function apiUrl(proxy,pathname,params,key){
 let ME=null;          // {email,admin}
 window.SNAP=null;     // 最新快照
 async function initAuthUI(){
-  try{ const r=await fetch('/auth/me'); if(r.ok) ME=await r.json(); }catch(e){}
   const adm=document.getElementById('adminLink');
-  if(adm&&ME&&ME.admin) adm.style.display='';
   const fbtn=document.getElementById('fetchBtn');
-  if(fbtn&&ME&&!ME.admin) fbtn.style.display='none';
+  /* 用上次记住的身份先摆好按钮,避免刷新时闪一下;随后向服务器确认 */
+  let cached=''; try{ cached=localStorage.getItem('wc_role')||''; }catch(e){}
+  if(cached==='admin'){ if(adm) adm.style.display=''; }
+  else if(cached==='user'){ if(fbtn) fbtn.style.display='none'; }
+  try{ const r=await fetch('/auth/me'); if(r.ok) ME=await r.json(); }catch(e){}
+  const role=(ME&&ME.admin)?'admin':(ME?'user':'');
+  try{ localStorage.setItem('wc_role',role); }catch(e){}
+  if(adm) adm.style.display=(role==='admin')?'':'none';
+  if(fbtn) fbtn.style.display=(role==='user')?'none':'';
   loadSnapshot(true);
 }
 function snapTime(ts){ try{ return new Date(ts).toLocaleString('zh-CN',{hour12:false,month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
