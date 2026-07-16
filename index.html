@@ -345,7 +345,7 @@
                    +'<span class="'+(mm.sHit?'mhit':'mmiss')+'">胜负'+(mm.sHit?'✓':'✗')+'</span>'
                    +(mm.ouPush?'<span class="mmut">大小走</span>'
                               :'<span class="'+(mm.ouHit?'mhit':'mmiss')+'">大小'+(mm.ouHit?'✓':'✗')+'</span>'); }
-      } else if(!res){ b+='<span class="mmut">未拉赔率</span>'; }
+      } else if(!res){ b+='<span class="mmut">'+(has?'点「看赔率」查看概率':'未拉赔率')+'</span>'; }
       return '<div class="dm'+(has?' click':'')+'"'+(has?' data-k="'+esc(k)+'"':'')+'>'
         +'<div class="dm-h"><span class="dm-t">'+esc(m.t)+'</span><span class="dm-rd">'+esc(m.rd)+'</span></div>'
         +'<div class="dm-mu">'+esc(m.mu)+(has?' <span class="odtag2">看赔率›</span>':'')+'</div>'
@@ -1020,6 +1020,13 @@ function pruneArch(arch){
 function archiveSnapshot(data,done){
   const arch=loadArch(), now=Date.now();
   let dirty=pruneArch(arch), added=0;
+  /* 译名更新后,把已归档场次的中文名同步成最新翻译(预测和盘口保持首见锁定) */
+  (data||[]).forEach(function(ev){
+    const id=ev.id||(ev.home_team+ev.away_team+ev.commence_time);
+    const e=arch[id]; if(!e) return;
+    const h=zh(ev.home_team), a=zh(ev.away_team);
+    if(e.home!==h||e.away!==a){ e.home=h; e.away=a; dirty=true; }
+  });
   const todo=(data||[]).filter(function(ev){
     const id=ev.id||(ev.home_team+ev.away_team+ev.commence_time);
     return !arch[id] && (new Date(ev.commence_time).getTime()>now); // 锁首见 + 只存未开赛
@@ -1060,7 +1067,11 @@ const SEED1={};
   s("葡萄牙","刚果(金)",1,1); s("英格兰","克罗地亚",4,2); s("加纳","巴拿马",1,0); s("乌兹别克斯坦","哥伦比亚",1,3);
 })();
 (function(){ const rs=loadRes(); let ch=false; for(const k in SEED1){ if(!rs[k]){rs[k]=SEED1[k];ch=true;} } if(ch)saveRes(rs); })();
-function archByKey(){ const a=loadArch(),m={}; Object.values(a).forEach(e=>{m[rkey(e.home,e.away)]=e;}); return m; }
+function archByKey(){ const a=loadArch(),m={}; Object.values(a).forEach(e=>{
+  m[rkey(e.home,e.away)]=e;
+  /* 兜底:用存档的英文原名按当前词典重新翻译建索引,译名更新也能对上 */
+  if(e.homeEn&&e.awayEn) m[rkey(zh(e.homeEn),zh(e.awayEn))]=e;
+}); return m; }
 function predFor(home,away){ const e=archByKey()[rkey(home,away)]; return e?e.pred:null; }
 const _sideOf=a=>a[0]>a[1]?'H':(a[0]<a[1]?'A':'D');
 function _modelSide(p){const m={H:p.pH,D:p.pD,A:p.pA};return Object.keys(m).reduce((x,y)=>m[y]>m[x]?y:x,'H');}
