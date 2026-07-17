@@ -59,6 +59,24 @@
   </div>
 
   <div class="card">
+    <h2>定时自动拉取</h2>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+      <label style="display:flex;gap:6px;align-items:center;font-size:14px;cursor:pointer">
+        <input type="checkbox" id="schOn" style="width:16px;height:16px;accent-color:var(--accent)">开启
+      </label>
+      <span style="font-size:14px">每
+        <select id="schHours" style="padding:6px 10px;border:1px solid var(--line-strong);border-radius:8px;font-family:inherit;font-size:13.5px">
+          <option value="1">1</option><option value="2">2</option><option value="4">4</option>
+          <option value="6">6</option><option value="12">12</option><option value="24">24</option>
+        </select> 小时拉取一次
+      </span>
+      <button onclick="saveSch()">保存</button>
+    </div>
+    <p class="msg" id="schMsg"></p>
+    <p id="schInfo" style="font-size:11.5px;color:var(--ink-faint);margin:6px 0 0;line-height:1.7"></p>
+  </div>
+
+  <div class="card">
     <h2>The Odds API · Key 池</h2>
     <div class="row">
       <input id="newKey" type="text" placeholder="粘贴新的 API key(the-odds-api.com 注册获取)">
@@ -158,9 +176,38 @@ async function addKey(){
   const d=await r.json(); setKmsg(d.message||'', r.ok?'ok':'err');
   if(r.ok){ document.getElementById('newKey').value=''; refreshKeys(); }
 }
+/* ---- 定时自动拉取 ---- */
+function setSchMsg(t,cls){ const m=document.getElementById('schMsg'); m.textContent=t||''; m.className='msg'+(cls?(' '+cls):''); }
+function schInfoText(d){
+  const n=(d.leagues||[]).length;
+  const h=+document.getElementById('schHours').value||6;
+  const est=n?Math.round(n*5*24/h):0;
+  let t='自动拉取使用你上次在看板「选择联赛」保存的组合(当前 '+n+' 个联赛)。';
+  if(n) t+='按每联赛约 5 额度估算,此间隔约耗 '+est+' 额度/天。';
+  if(d.lastTs) t+='上次更新:'+new Date(d.lastTs).toLocaleString('zh-CN',{hour12:false})+(d.lastBy==='自动定时'?'(自动)':'');
+  document.getElementById('schInfo').textContent=t;
+}
+let SCHD={leagues:[]};
+async function loadSch(){
+  const r=await fetch('/auth/admin/schedule');
+  if(!r.ok) return;
+  SCHD=await r.json();
+  document.getElementById('schOn').checked=!!SCHD.enabled;
+  document.getElementById('schHours').value=String(SCHD.hours||6);
+  schInfoText(SCHD);
+}
+async function saveSch(){
+  const enabled=document.getElementById('schOn').checked;
+  const hours=+document.getElementById('schHours').value||6;
+  const r=await fetch('/auth/admin/schedule',{method:'POST',
+    headers:{'content-type':'application/json'},body:JSON.stringify({enabled,hours})});
+  const d=await r.json(); setSchMsg(d.message||'', r.ok?'ok':'err');
+  schInfoText(SCHD);
+}
+document.getElementById('schHours').addEventListener('change',()=>schInfoText(SCHD));
 document.getElementById('newKey').addEventListener('keydown',e=>{ if(e.key==='Enter') addKey(); });
 document.getElementById('inv').addEventListener('keydown',e=>{ if(e.key==='Enter') invite(); });
-guard().then(ok=>{ if(ok){ refresh(); quota(); refreshKeys(); } });
+guard().then(ok=>{ if(ok){ refresh(); quota(); refreshKeys(); loadSch(); } });
 </script>
 </body>
 </html>

@@ -128,6 +128,22 @@ function refreshSnapshot(leagues, by, cb){
   })();
 }
 
+/* ---------- 定时自动拉取:按 settings.json 的 auto 配置,到点自动刷新快照 ---------- */
+let lastAutoAttempt = 0;
+setInterval(function(){
+  const st = loadJSON('settings.json', null);
+  if (!st || !st.auto || !st.auto.enabled) return;
+  const hours = Math.min(48, Math.max(1, +st.auto.hours || 6));
+  const snap = loadJSON('snapshot.json', null);
+  if (snap && Date.now() - snap.ts < hours*3600e3) return;        // 还没到点
+  if (Date.now() - lastAutoAttempt < 10*60e3) return;             // 失败重试至少隔 10 分钟
+  lastAutoAttempt = Date.now();
+  refreshSnapshot(st.leagues || ['soccer_fifa_world_cup'], '自动定时', function(err, s2){
+    console.log(err ? ('自动拉取失败: '+err.message)
+                    : ('自动拉取完成: '+s2.odds.length+' 场赔率 / '+s2.scores.length+' 场赛果'));
+  });
+}, 60e3).unref();
+
 /* ---------- key 池(keys.json,供 odds_proxy 轮换) ---------- */
 function loadKeys(){
   try{ const a=JSON.parse(fs.readFileSync(KEYS_FILE,'utf8'));
@@ -316,6 +332,27 @@ const server = http.createServer(function(req, res){
       return json(res, 200, {ok:true, admins: wl.admins, users: wl.users});
 
     /* key 池管理 */
+    /* 定时拉取配置 */
+    if (p === '/auth/admin/schedule' && req.method === 'GET'){
+      const st = loadJSON('settings.json', {}) || {};
+      const snap = loadJSON('snapshot.json', null);
+      return json(res, 200, {ok:true,
+        enabled: !!(st.auto && st.auto.enabled),
+        hours: (st.auto && st.auto.hours) || 6,
+        leagues: st.leagues || [],
+        lastTs: snap ? snap.ts : null, lastBy: snap ? snap.by : null});
+    }
+    if (p === '/auth/admin/schedule' && req.method === 'POST'){
+      return readBody(req, function(body){
+        const st = loadJSON('settings.json', {}) || {};
+        const hours = Math.min(48, Math.max(1, +(body && body.hours) || 6));
+        st.auto = { enabled: !!(body && body.enabled), hours: hours };
+        saveJSON('settings.json', st);
+        json(res, 200, {ok:true, message: st.auto.enabled
+          ? ('已开启:每 '+hours+' 小时自动拉取一次') : '已关闭自动拉取'});
+      });
+    }
+
     if (p === '/auth/admin/keys' && req.method === 'GET'){
       const ks = loadKeys();
       return json(res, 200, {ok:true, keys: ks.map(function(k,i){ return {i:i, masked:maskKey(k)}; })});
