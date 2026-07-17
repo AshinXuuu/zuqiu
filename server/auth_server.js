@@ -128,14 +128,34 @@ function refreshSnapshot(leagues, by, cb){
   })();
 }
 
-/* ---------- 定时自动拉取:按 settings.json 的 auto 配置,到点自动刷新快照 ---------- */
+/* ---------- 定时自动拉取:按 settings.json 的 auto 配置,到点自动刷新快照
+   两种模式:interval=每 N 小时;times=每天北京时间定点(如 10:00、18:00)。
+   定点模式带补拉:到点时服务器不在线,恢复后发现"快照早于今天该时点"会立即补拉。 ---------- */
 let lastAutoAttempt = 0;
+/* 今天(北京,UTC+8 无夏令时)已到的时间点里,是否有快照没覆盖到的 → 该拉了 */
+function dueAtTimes(times, snapTs){
+  const now = Date.now(), off = 8*3600e3;
+  const bjDayStart = Math.floor((now+off)/864e5)*864e5 - off;
+  return (times||[]).some(function(t){
+    const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(String(t).trim());
+    if (!m) return false;
+    const slot = bjDayStart + (+m[1])*3600e3 + (+m[2])*60e3;
+    return now >= slot && (!snapTs || snapTs < slot);
+  });
+}
 setInterval(function(){
   const st = loadJSON('settings.json', null);
   if (!st || !st.auto || !st.auto.enabled) return;
-  const hours = Math.min(48, Math.max(1, +st.auto.hours || 6));
+  const a = st.auto;
   const snap = loadJSON('snapshot.json', null);
-  if (snap && Date.now() - snap.ts < hours*3600e3) return;        // 还没到点
+  let due;
+  if (a.mode === 'times'){
+    due = dueAtTimes(a.times, snap && snap.ts);
+  } else {
+    const hours = Math.min(48, Math.max(1, +a.hours || 6));
+    due = !snap || Date.now() - snap.ts >= hours*3600e3;
+  }
+  if (!due) return;
   if (Date.now() - lastAutoAttempt < 10*60e3) return;             // 失败重试至少隔 10 分钟
   lastAutoAttempt = Date.now();
   refreshSnapshot(st.leagues || ['soccer_fifa_world_cup'], '自动定时', function(err, s2){
@@ -336,9 +356,10 @@ const server = http.createServer(function(req, res){
     if (p === '/auth/admin/schedule' && req.method === 'GET'){
       const st = loadJSON('settings.json', {}) || {};
       const snap = loadJSON('snapshot.json', null);
+      const a = st.auto || {};
       return json(res, 200, {ok:true,
-        enabled: !!(st.auto && st.auto.enabled),
-        hours: (st.auto && st.auto.hours) || 6,
+        enabled: !!a.enabled, mode: a.mode==='times'?'times':'interval',
+        hours: a.hours || 6, times: a.times || [],
         leagues: st.leagues || [],
         lastTs: snap ? snap.ts : null, lastBy: snap ? snap.by : null});
     }
@@ -346,10 +367,18 @@ const server = http.createServer(function(req, res){
       return readBody(req, function(body){
         const st = loadJSON('settings.json', {}) || {};
         const hours = Math.min(48, Math.max(1, +(body && body.hours) || 6));
-        st.auto = { enabled: !!(body && body.enabled), hours: hours };
+        const mode = (body && body.mode === 'times') ? 'times' : 'interval';
+        let times = (body && Array.isArray(body.times)) ? body.times : [];
+        times = times.map(function(s){ return String(s).trim(); })
+          .filter(function(s){ return /^([01]?\d|2[0-3]):[0-5]\d$/.test(s); });
+        times = Array.from(new Set(times)).sort().slice(0,6);
+        if (mode==='times' && (body&&body.enabled) && !times.length)
+          return json(res, 400, {ok:false, message:'定点模式至少要填一个有效时间(如 10:00)'});
+        st.auto = { enabled: !!(body && body.enabled), mode: mode, hours: hours, times: times };
         saveJSON('settings.json', st);
-        json(res, 200, {ok:true, message: st.auto.enabled
-          ? ('已开启:每 '+hours+' 小时自动拉取一次') : '已关闭自动拉取'});
+        json(res, 200, {ok:true, message: !st.auto.enabled ? '已关闭自动拉取'
+          : (mode==='times' ? ('已开启:每天北京时间 '+times.join('、')+' 自动拉取')
+                            : ('已开启:每 '+hours+' 小时自动拉取一次'))});
       });
     }
 
