@@ -155,10 +155,40 @@ function topScores(M,n){
   return flat.slice(0,n||10);
 }
 
-/* 从一组盘口赔率生成完整预测快照(纯函数)
-   opts.devig1x2: 'power'(默认)| 'shin' | 'prop' —— 1X2 去水位方法
-   大小球/让球两侧对称,固定用等比例法 */
-function predictFromOdds(od,opts){
+/* ===== 自学习形状校正 =====
+   市场盘口锁定了 {胜/平/负}×{大/小} 六类的边际概率;泊松假设决定的是
+   六类内部各比分的分布形状。adjustMatrix 用 3 个从历史赛果学到的参数
+   对形状做乘性倾斜,再按六类精确归一回原边际 —— 不改变市场概率,
+   只重新分配同类内的比分权重(TOP3 更贴近真实比分分布)。
+   adj = {low, high, narrow}:
+     low    低比分倾斜(总进球 ≤1 的格子)
+     high   高比分倾斜(总进球 ≥5 的格子)
+     narrow 一球小胜倾斜(净胜 1 球且总进球 ≤3:1-0/2-1/0-1/1-2) */
+function adjustMatrix(M, adj, line){
+  if(!adj) return M;
+  const a=+adj.low||0, b=+adj.high||0, c=+adj.narrow||0;
+  if(!a&&!b&&!c) return M;
+  const cls=(i,j)=>(i>j?0:(i===j?1:2))+((i+j>line)?0:3);   // 六类:{H,D,A}×{大,小}
+  const target=[0,0,0,0,0,0];
+  for(let i=0;i<=MAXG;i++)for(let j=0;j<=MAXG;j++) target[cls(i,j)]+=M[i][j];
+  const A=[];
+  for(let i=0;i<=MAXG;i++){A[i]=[];for(let j=0;j<=MAXG;j++){
+    let w=0;
+    if(i+j<=1) w+=a;
+    if(i+j>=5) w+=b;
+    if(Math.abs(i-j)===1&&i+j<=3) w+=c;
+    A[i][j]=M[i][j]*Math.exp(w);
+  }}
+  const cur=[0,0,0,0,0,0];
+  for(let i=0;i<=MAXG;i++)for(let j=0;j<=MAXG;j++) cur[cls(i,j)]+=A[i][j];
+  for(let i=0;i<=MAXG;i++)for(let j=0;j<=MAXG;j++){
+    const k=cls(i,j); if(cur[k]>0) A[i][j]*=target[k]/cur[k];
+  }
+  return A;
+}
+
+/* 从赔率反推比分矩阵(fit 的完整输出,学习器要用) */
+function matrixFromOdds(od,opts){
   const oH=+od.H,oD=+od.D,oA=+od.A,oOver=+od.over,oUnder=+od.under,line=+od.line;
   if(!(oH>1&&oD>1&&oA>1&&oOver>1&&oUnder>1)) return null;
   const method=(opts&&opts.devig1x2)||'power';
@@ -166,11 +196,25 @@ function predictFromOdds(od,opts){
   const d1=dv([oH,oD,oA]), d2=devig([oOver,oUnder]);
   const target={H:d1.p[0],D:d1.p[1],A:d1.p[2],Over:d2.p[0]};
   if(od.ahLine!=null&&+od.ahHome>1&&+od.ahAway>1){ target.ah=devig([+od.ahHome,+od.ahAway]).p[0]; target.ahLine=+od.ahLine; }
-  const f=fit(target,line), M=scoreMatrix(f.lh,f.la,f.rho), im=implied(M,line);
+  const f=fit(target,line);
+  return {M:scoreMatrix(f.lh,f.la,f.rho), line:line, lh:f.lh, la:f.la, rho:f.rho, e:f.e};
+}
+
+/* 从一组盘口赔率生成完整预测快照(纯函数)
+   opts.devig1x2: 'power'(默认)| 'shin' | 'prop' —— 1X2 去水位方法
+   opts.adjust:   自学习形状校正参数 {low,high,narrow}(可选) */
+function predictFromOdds(od,opts){
+  const r=matrixFromOdds(od,opts);
+  if(!r) return null;
+  let M=r.M;
+  if(opts&&opts.adjust) M=adjustMatrix(M,opts.adjust,r.line);
+  const im=implied(M,r.line);
   return {pH:+im.H.toFixed(4),pD:+im.D.toFixed(4),pA:+im.A.toFixed(4),pOver:+im.Over.toFixed(4),
-          lh:+f.lh.toFixed(3),la:+f.la.toFixed(3),line:line,
+          lh:+r.lh.toFixed(3),la:+r.la.toFixed(3),line:r.line,
+          adj:(opts&&opts.adjust)?1:0,
           top:topScores(M,6).map(t=>[t[0],t[1],+t[2].toFixed(4)])};
 }
 
-return {MAXG,pois,tau,scoreMatrix,implied,devig,devigPower,devigShin,ahHomeProb,fit,topScores,predictFromOdds};
+return {MAXG,pois,tau,scoreMatrix,implied,devig,devigPower,devigShin,ahHomeProb,fit,topScores,
+        adjustMatrix,matrixFromOdds,predictFromOdds};
 });

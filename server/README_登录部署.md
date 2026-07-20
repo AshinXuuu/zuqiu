@@ -15,6 +15,21 @@
 > ```
 > 首次会自动把 key.txt 迁移成 keys.json;之后在 /admin.html 里管理 key。
 
+> **v3 更新(模型自学习)**:服务器每次拉取自动积累「赛前盘口 + 实际赛果」到
+> data/history.json;管理后台"模型自学习"卡片攒够 150 场赛果后可点「立即学习」。
+> 学的是"同一胜负/大小结果内概率如何分到具体比分"(不改市场边际概率),
+> 按时间 70/30 训练/验证,验证集似然没提升会自动拒绝启用。
+>
+> **v3 升级步骤**:
+> ```bash
+> cd ~/Desktop/世界杯/outputs
+> scp server/auth_server.js server/learner.js market_model.js ubuntu@124.222.164.101:/opt/odds-proxy/
+> ssh ubuntu@124.222.164.101 "sudo systemctl restart auth-server"
+> ./deploy.sh "模型自学习"
+> ```
+> 注意:market_model.js 需要同时存在于网站根目录(deploy.sh 负责)和
+> /opt/odds-proxy/(上面 scp 负责,学习器要用)。
+
 组件:`auth_server.js`(127.0.0.1:8788)负责发验证码、会话、邀请名单;
 nginx 用 `auth_request` 把整站(含 /api 赔率代理)保护起来;
 `login.html` 登录页、`admin.html` 管理后台(邀请/移除邮箱、看剩余额度)。

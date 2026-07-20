@@ -403,7 +403,7 @@
           <div class="stat a"><div class="k">客胜</div><div class="v" id="sA">–</div></div>
           <div class="stat"><div class="k" id="ouK">大 2.5</div><div class="v" id="sO">–</div></div>
         </div>
-        <p class="lam">拟合期望进球　主队 <b id="lh">–</b>　客队 <b id="la">–</b>　<span style="color:var(--ink-faint)">(已用 Dixon-Coles 低比分修正)</span></p>
+        <p class="lam">拟合期望进球　主队 <b id="lh">–</b>　客队 <b id="la">–</b>　<span style="color:var(--ink-faint)">(已用 Dixon-Coles 低比分修正)</span><span id="adjTag" style="color:var(--accent);font-size:12px"></span></p>
 
         <div class="blocktitle">比分概率热力图</div>
         <div class="matrix-wrap"><table class="mx" id="mx"></table></div>
@@ -450,7 +450,8 @@ function run(){
         ahA=parseFloat(document.getElementById('ahAway').value);
   if(isFinite(ahLine)&&ahH>1&&ahA>1){ target.ah=devig([ahH,ahA]).p[0]; target.ahLine=ahLine; }
   const f=fit(target,line);
-  const M=scoreMatrix(f.lh,f.la,f.rho);
+  let M=scoreMatrix(f.lh,f.la,f.rho);
+  if(window.MODEL_ADJ) M=adjustMatrix(M,window.MODEL_ADJ,line);   // 自学习形状校正
   const im=implied(M,line);
 
   const home=document.getElementById('home').value||'主队';
@@ -463,6 +464,8 @@ function run(){
   document.getElementById('sO').innerHTML=(im.Over*100).toFixed(1)+'<small>%</small>';
   document.getElementById('lh').textContent=f.lh.toFixed(2);
   document.getElementById('la').textContent=f.la.toFixed(2);
+  const at=document.getElementById('adjTag');
+  if(at) at.textContent=window.MODEL_ADJ?'　✦已应用自学习校正':'';
 
   // matrix 0..6
   const N=6; let maxp=0;
@@ -658,6 +661,13 @@ const CLUB_ZH={
  "Fredrikstad":"费特斯塔","KFUM Oslo":"KF奥斯陆","KFUM":"KF奥斯陆","Bryne":"布莱尼",
  "Aalesund":"奥勒松","Aalesunds FK":"奥勒松","Start":"斯达","IK Start":"斯达",
 
+ /* ===== 芬超(Veikkausliiga) ===== */
+ "Inter Turku":"国际图尔库","FC Inter Turku":"国际图尔库","SJK":"塞伊纳约基","SJK Seinajoki":"塞伊纳约基",
+ "Ilves":"伊尔维斯","Ilves Tampere":"伊尔维斯","VPS":"瓦萨","VPS Vaasa":"瓦萨","Vaasan Palloseura":"瓦萨",
+ "FC Haka":"哈卡","Haka":"哈卡","FC Lahti":"拉赫蒂","Lahti":"拉赫蒂","AC Oulu":"奥卢","Oulu":"奥卢",
+ "IFK Mariehamn":"马里港","Mariehamn":"马里港","HIFK":"赫尔辛基HIFK","HIFK Helsinki":"赫尔辛基HIFK",
+ "Gnistan":"格尼斯坦","IF Gnistan":"格尼斯坦","KTP":"科特卡","KTP Kotka":"科特卡","FF Jaro":"雅罗","Jaro":"雅罗",
+
  /* ===== 瑞士超(Super League) ===== */
  "St. Gallen":"圣加仑","FC St. Gallen":"圣加仑","Grasshopper":"草蜢","Grasshoppers":"草蜢",
  "Grasshopper Club Zurich":"草蜢","FC Luzern":"卢塞恩","Luzern":"卢塞恩",
@@ -796,6 +806,7 @@ async function initAuthUI(){
 function snapTime(ts){ try{ return new Date(ts).toLocaleString('zh-CN',{hour12:false,month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
 function processSnapshot(snap){
   window.SNAP=snap;
+  window.MODEL_ADJ=snap.params||null;   // 自学习形状校正(服务器验证通过才会下发)
   const all=snap.odds||[];
   try{ localStorage.setItem(ODDSCACHE,JSON.stringify({ts:snap.ts,data:all})); }catch(e){}
   buildOddsIndex(all);
@@ -857,6 +868,7 @@ const LG_ZH={
  soccer_korea_kleague1:'韩K联',
  soccer_sweden_allsvenskan:'瑞典超',
  soccer_norway_eliteserien:'挪超',
+ soccer_finland_veikkausliiga:'芬超',
  soccer_switzerland_superleague:'瑞士超',
  soccer_brazil_campeonato:'巴甲',
  soccer_usa_mls:'美职联'
@@ -864,7 +876,8 @@ const LG_ZH={
 const LG_ORDER=['soccer_fifa_world_cup','soccer_epl','soccer_germany_bundesliga','soccer_spain_la_liga',
   'soccer_italy_serie_a','soccer_uefa_champs_league','soccer_uefa_champs_league_qualification',
   'soccer_uefa_europa_league','soccer_japan_j_league','soccer_korea_kleague1','soccer_sweden_allsvenskan',
-  'soccer_norway_eliteserien','soccer_switzerland_superleague','soccer_brazil_campeonato','soccer_usa_mls'];
+  'soccer_norway_eliteserien','soccer_finland_veikkausliiga','soccer_switzerland_superleague',
+  'soccer_brazil_campeonato','soccer_usa_mls'];
 /* 兜底:英文标题里的关键词 → 中文 */
 function lgZh(key,title){
   if(LG_ZH[key]) return LG_ZH[key];
@@ -1037,7 +1050,8 @@ function archiveSnapshot(data,done){
     while(i<todo.length && Date.now()-t0<50){
       const ev=todo[i++], id=ev.id||(ev.home_team+ev.away_team+ev.commence_time);
       const od=extract(ev); if(!od) continue;
-      const pred=predictFromOdds(od); if(!pred) continue;
+      const pred=predictFromOdds(od, window.MODEL_ADJ?{adjust:window.MODEL_ADJ}:undefined);
+      if(!pred) continue;
       arch[id]={id,home:zh(ev.home_team),away:zh(ev.away_team),
         homeEn:ev.home_team,awayEn:ev.away_team,commence:ev.commence_time,
         league:ev.sport_title||'',snapTs:now,

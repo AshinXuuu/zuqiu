@@ -108,6 +108,7 @@ function refreshSnapshot(leagues, by, cb){
       const snap = { ts: Date.now(), by: by, leagues: sks, odds: odds, scores: scores,
                      failed: failed, remaining: remaining };
       saveJSON('snapshot.json', snap);
+      try{ updateHistory(odds, scores); }catch(e){ console.error('history:', e.message); }
       return cb(null, snap);
     }
     const sk = sks[i++];
@@ -126,6 +127,59 @@ function refreshSnapshot(leagues, by, cb){
           });
       });
   })();
+}
+
+/* ---------- 历史积累(供自学习):每次拉取把新场次的盘口存下,赛果到了配对 ---------- */
+function extractOdds(ev){       // 与前端 extract() 同逻辑:优先 Pinnacle,取最均衡主线
+  let bk=ev.bookmakers&&(ev.bookmakers.find(function(b){return /pinnacle/i.test(b.key);})||ev.bookmakers[0]);
+  if(!bk||!bk.markets)return null;
+  const h2h=bk.markets.find(function(m){return m.key==='h2h';});
+  if(!h2h)return null;
+  const getO=function(name){const o=h2h.outcomes.find(function(x){return x.name===name;});return o?o.price:null;};
+  const H=getO(ev.home_team),A=getO(ev.away_team);
+  let D=getO('Draw');
+  if(D==null){const o=h2h.outcomes.find(function(x){return x.name!==ev.home_team&&x.name!==ev.away_team;});D=o?o.price:null;}
+  if(!H||!A||!D)return null;
+  let over=null,under=null,line=2.5;
+  const tot=bk.markets.find(function(m){return m.key==='totals';});
+  if(tot){let bd=1e9;
+    Array.from(new Set(tot.outcomes.map(function(o){return o.point;}))).filter(function(x){return x!=null;}).forEach(function(pt){
+      const ov=tot.outcomes.find(function(o){return o.name==='Over'&&o.point===pt}),
+            un=tot.outcomes.find(function(o){return o.name==='Under'&&o.point===pt});
+      if(ov&&un){const d=Math.abs(ov.price-un.price); if(d<bd){bd=d;over=ov.price;under=un.price;line=pt;}}
+    });}
+  if(!over||!under)return null;   // 学习需要完整的大小球盘
+  let ahLine=null,ahHome=null,ahAway=null;
+  const sp=bk.markets.find(function(m){return m.key==='spreads';});
+  if(sp){let bd=1e9;
+    sp.outcomes.filter(function(o){return o.name===ev.home_team;}).forEach(function(ho){
+      const ao=sp.outcomes.find(function(o){return o.name===ev.away_team&&Math.abs((+o.point||0)+(+ho.point||0))<1e-6;});
+      if(ao){const d=Math.abs(ho.price-ao.price); if(d<bd){bd=d;ahLine=ho.point;ahHome=ho.price;ahAway=ao.price;}}
+    });}
+  return {H:H,D:D,A:A,line:line,over:over,under:under,ahLine:ahLine,ahHome:ahHome,ahAway:ahAway};
+}
+function updateHistory(odds, scores){
+  const h = loadJSON('history.json', {});
+  const now = Date.now();
+  (odds||[]).forEach(function(ev){
+    if(!ev||!ev.id) return;
+    if(h[ev.id]) return;                                   // 首见锁定
+    const t = Date.parse(ev.commence_time);
+    if(!(t>now)) return;                                   // 只存未开赛(赛前盘口才公平)
+    const od = extractOdds(ev); if(!od) return;
+    h[ev.id] = {ts:t, odds:od, home:ev.home_team, away:ev.away_team, sk:ev._sk||''};
+  });
+  (scores||[]).forEach(function(ev){
+    const e = ev&&h[ev.id]; if(!e||e.hg!=null) return;
+    if(!ev.completed||!Array.isArray(ev.scores)) return;
+    const sm={}; ev.scores.forEach(function(s){ sm[s.name]=Number(s.score); });
+    if((ev.home_team in sm)&&(ev.away_team in sm)){ e.hg=sm[ev.home_team]; e.ag=sm[ev.away_team]; }
+  });
+  const ids = Object.keys(h);                              // 上限 6000 场,删最旧
+  if (ids.length>6000) ids.sort(function(x,y){return h[x].ts-h[y].ts;})
+    .slice(0, ids.length-6000).forEach(function(id){ delete h[id]; });
+  saveJSON('history.json', h);
+  return ids.length;
 }
 
 /* ---------- 定时自动拉取:按 settings.json 的 auto 配置,到点自动刷新快照
@@ -322,6 +376,8 @@ const server = http.createServer(function(req, res){
     if (!s) return json(res, 401, {ok:false, message:'未登录'});
     const snap = loadJSON('snapshot.json', null);
     if (!snap) return json(res, 404, {ok:false, message:'还没有数据,请等管理员拉取'});
+    const mp = loadJSON('model_params.json', null);
+    snap.params = (mp && mp.applied) ? mp.params : null;   // 自学习校正(启用时才下发)
     return json(res, 200, snap);
   }
   if (p === '/auth/data/refresh' && req.method === 'POST'){
@@ -337,6 +393,8 @@ const server = http.createServer(function(req, res){
       saveJSON('settings.json', {leagues: leagues});
       refreshSnapshot(leagues, s.email, function(err, snap){
         if (err) return json(res, 502, {ok:false, message:'拉取失败:'+err.message});
+        const mp = loadJSON('model_params.json', null);
+        snap.params = (mp && mp.applied) ? mp.params : null;
         json(res, 200, snap);
       });
     });
@@ -352,6 +410,31 @@ const server = http.createServer(function(req, res){
       return json(res, 200, {ok:true, admins: wl.admins, users: wl.users});
 
     /* key 池管理 */
+    /* 模型自学习:用积累的历史(赔率+赛果)学形状参数,验证集不达标自动拒绝 */
+    if (p === '/auth/admin/learn' && req.method === 'GET'){
+      const h = loadJSON('history.json', {});
+      const arr = Object.values(h);
+      const withRes = arr.filter(function(e){ return e.hg!=null; }).length;
+      const mp = loadJSON('model_params.json', null);
+      return json(res, 200, {ok:true, total:arr.length, withResult:withRes,
+        current: mp || null});
+    }
+    if (p === '/auth/admin/learn' && req.method === 'POST'){
+      let learner;
+      try{ learner = require(path.join(__dirname,'learner.js')); }
+      catch(e){ return json(res, 500, {ok:false, message:'缺少 learner.js / market_model.js:'+e.message}); }
+      const h = loadJSON('history.json', {});
+      let rep;
+      try{ rep = learner.learn(Object.values(h)); }
+      catch(e){ return json(res, 500, {ok:false, message:'学习出错:'+e.message}); }
+      if (rep.ok){
+        saveJSON('model_params.json', {applied: rep.applied, params: rep.params,
+          sample: rep.sample, valGain: rep.valGain,
+          top3Base: rep.top3Base, top3New: rep.top3New, updatedAt: Date.now()});
+      }
+      return json(res, 200, rep);
+    }
+
     /* 定时拉取配置 */
     if (p === '/auth/admin/schedule' && req.method === 'GET'){
       const st = loadJSON('settings.json', {}) || {};
